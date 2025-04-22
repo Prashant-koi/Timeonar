@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .hoverEffect {
+    @apply cursor-pointer hover:bg-gray-800 rounded-full w-[52px] xl:w-auto h-[52px] xl:h-auto xl:p-3 transition duration-200;
+  }
+  
+  .icon {
+    @apply cursor-pointer w-9 h-9 hover:bg-gray-800 flex items-center justify-center rounded-full transition ease-out;
+  }
+}
+
+body {
+  @apply bg-black text-white;
+}
+
+/* Add smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
