@@ -1,0 +1,94 @@
+{
+  "topic": "Climate Change Policies",
+  "totalEntries": 8,
+  "timeline": [
+    {
+      "id": "cc-1992",
+      "year": 1992,
+      "title": "Earth Summit in Rio de Janeiro",
+      "summary": "The United Nations Framework Convention on Climate Change (UNFCCC) was adopted, setting the foundation for international climate policy cooperation.",
+      "source": "United Nations Documents",
+      "url": "https://example.com/unfccc",
+      "authors": ["United Nations"],
+      "citationCount": 4812,
+      "keyInsight": "First major international agreement acknowledging the need to stabilize greenhouse gas concentrations in the atmosphere."
+    },
+    {
+      "id": "cc-1997",
+      "year": 1997,
+      "title": "Kyoto Protocol Adopted",
+      "summary": "The Kyoto Protocol was adopted, committing industrialized nations to binding greenhouse gas emission reduction targets.",
+      "source": "UNFCCC Archives",
+      "url": "https://example.com/kyoto",
+      "authors": ["UNFCCC Parties"],
+      "citationCount": 7239,
+      "keyInsight": "First binding treaty with specific emissions targets for developed countries, though without commitments from major developing nations."
+    },
+    {
+      "id": "cc-2005",
+      "year": 2005,
+      "title": "Kyoto Protocol Enters Into Force",
+      "summary": "The Kyoto Protocol officially entered into force after Russian ratification, requiring countries to begin implementing policies to meet their emission targets.",
+      "source": "Journal of Climate Policy",
+      "url": "https://example.com/kyoto-enforcement",
+      "authors": ["Sarah Miller", "John Chang"],
+      "citationCount": 2584,
+      "keyInsight": "Implementation phase began, though the absence of the United States limited global effectiveness."
+    },
+    {
+      "id": "cc-2009",
+      "year": 2009,
+      "title": "Copenhagen Accord",
+      "summary": "The Copenhagen Climate Change Conference resulted in the Copenhagen Accord, which recognized the need to limit global temperature increases to 2°C above pre-industrial levels.",
+      "source": "Environmental Policy Research",
+      "url": "https://example.com/copenhagen",
+      "authors": ["Michael Wang", "Emma Rodriguez"],
+      "citationCount": 3127,
+      "keyInsight": "Shifted focus from binding emissions targets to temperature goals, but was criticized for lack of legal enforcement mechanisms."
+    },
+    {
+      "id": "cc-2015",
+      "year": 2015,
+      "title": "Paris Agreement Adoption",
+      "summary": "The Paris Agreement was adopted, with nearly all countries pledging to limit global warming to well below 2°C and to pursue efforts to limit it to 1.5°C.",
+      "source": "Science Journal",
+      "url": "https://example.com/paris-agreement",
+      "authors": ["UNFCCC Secretariat"],
+      "citationCount": 9843,
+      "keyInsight": "Landmark agreement introducing nationally determined contributions (NDCs) as the primary mechanism for climate commitments."
+    },
+    {
+      "id": "cc-2017",
+      "year": 2017,
+      "title": "United States Announces Paris Agreement Withdrawal",
+      "summary": "The Trump administration announced the intention to withdraw the United States from the Paris Agreement, creating uncertainty in global climate governance.",
+      "source": "International Affairs Quarterly",
+      "url": "https://example.com/us-withdrawal",
+      "authors": ["David Cooper", "Lisa Chen"],
+      "citationCount": 2956,
+      "keyInsight": "Demonstrated the vulnerability of international climate agreements to national political shifts."
+    },
+    {
+      "id": "cc-2021",
+      "year": 2021,
+      "title": "United States Rejoins Paris Agreement",
+      "summary": "The Biden administration officially rejoined the Paris Agreement on its first day in office, reestablishing the United States as part of the global climate effort.",
+      "source": "Climate Policy Journal",
+      "url": "https://example.com/us-rejoin",
+      "authors": ["Thomas Garcia", "Sophia Williams"],
+      "citationCount": 1752,
+      "keyInsight": "Highlighted the importance of sustained political commitment to climate agreements across administrations."
+    },
+    {
+      "id": "cc-2023",
+      "year": 2023,
+      "title": "COP28 and Global Stocktake",
+      "summary": "The COP28 conference conducted the first global stocktake under the Paris Agreement, revealing a significant gap between current policies and the emission reductions needed to meet Paris goals.",
+      "source": "Nature Climate Change",
+      "url": "https://example.com/cop28",
+      "authors": ["UNFCCC", "Climate Action Tracker"],
+      "citationCount": 1283,
+      "keyInsight": "First formal assessment showed current policies would lead to 2.8°C warming, far above the Paris Agreement targets."
+    }
+  ]
+}
