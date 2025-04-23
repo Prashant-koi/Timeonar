@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TimelineControlsProps {
   onSearch: (topic: string) => void;
   onYearFilter: (year: number | null) => void;
   isLoading: boolean;
   selectedYear: number | null;
+  defaultTopic?: string;
 }
 
 const TimelineControls: React.FC<TimelineControlsProps> = ({ 
   onSearch, 
   onYearFilter, 
   isLoading,
-  selectedYear
+  selectedYear,
+  defaultTopic = ''
 }) => {
   const [searchInput, setSearchInput] = useState('');
   const [yearInput, setYearInput] = useState('');
+  
+  // Set default topic if provided
+  useEffect(() => {
+    if (defaultTopic && !searchInput) {
+      setSearchInput(defaultTopic);
+    }
+  }, [defaultTopic]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +59,7 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="e.g., AI alignment, Climate change policies"
+                placeholder="e.g., AI and its effects, Climate change policies"
                 className="bg-black border border-gray-800 rounded-l-lg py-2 px-4 block w-full focus:outline-none focus:border-blue-500"
                 disabled={isLoading}
               />
@@ -127,6 +136,43 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
           </button>
         </div>
       )}
+      
+      {/* Quick topic suggestions */}
+      <div className="mt-4">
+        <p className="text-sm text-gray-400 mb-2">Popular topics:</p>
+        <div className="flex flex-wrap gap-2">
+          <button 
+            onClick={() => {
+              setSearchInput("AI and its effects");
+              onSearch("AI and its effects");
+            }}
+            className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300"
+            disabled={isLoading}
+          >
+            AI and its effects
+          </button>
+          <button 
+            onClick={() => {
+              setSearchInput("Climate change policies");
+              onSearch("Climate change policies");
+            }}
+            className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300"
+            disabled={isLoading}
+          >
+            Climate change policies
+          </button>
+          <button 
+            onClick={() => {
+              setSearchInput("Quantum computing");
+              onSearch("Quantum computing");
+            }}
+            className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300"
+            disabled={isLoading}
+          >
+            Quantum computing
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
