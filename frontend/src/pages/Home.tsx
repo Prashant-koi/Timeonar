@@ -50,11 +50,51 @@ const Home: React.FC = () => {
             </div>
           </div>
           <div className="flex-1">
-            <img 
-              src={generateColorPlaceholder(600, 400, "Literature Timeline")}
-              alt="Timeonar Literature Timeline" 
-              className="rounded-lg shadow-2xl"
-            />
+            {/* Replace placeholder with mini timeline demo */}
+            <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden shadow-2xl">
+              <div className="p-3 bg-gray-900 border-b border-gray-800 flex justify-between items-center">
+                <h3 className="text-lg font-bold flex items-center">
+                  <span className="mr-2">Climate Change Policies Timeline</span>
+                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">DEMO</span>
+                </h3>
+              </div>
+              
+              <div className="p-4 max-h-[400px] overflow-y-auto">
+                <div className="border-l-2 border-gray-800 ml-4 mt-2">
+                  {demoData.slice(0, 3).map((item) => (
+                    <div key={item.id} className="relative ml-6 mb-6">
+                      <div className="absolute -left-8 mt-1">
+                        <div className="bg-blue-500 border-4 border-gray-900 h-3 w-3 rounded-full"></div>
+                      </div>
+                      
+                      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="text-base font-bold">{item.title}</h4>
+                          <div className="bg-blue-500 text-white text-sm px-2.5 rounded-full">
+                            {item.year}
+                          </div>
+                        </div>
+                        
+                        <p className="text-gray-300 text-sm mb-3 line-clamp-2">{item.summary}</p>
+                        
+                        {item.keyInsight && (
+                          <div className="mb-3 bg-blue-500/10 p-2 rounded border-l-4 border-blue-500">
+                            <div className="font-bold text-xs text-blue-400">KEY INSIGHT:</div>
+                            <p className="text-gray-300 text-sm italic line-clamp-2">{item.keyInsight}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="p-3 border-t border-gray-800 bg-gray-900 text-center">
+                <Link to="/timeonar" className="text-blue-500 hover:text-blue-400 text-sm font-medium">
+                  Explore Full Timeline →
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -150,7 +190,7 @@ const Home: React.FC = () => {
                             Source: {item.source}
                           </div>
                           <div className="text-blue-400">
-                            {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer">Read More</a>}
+                            {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer">Read More</a>}
                           </div>
                         </div>
                       </div>

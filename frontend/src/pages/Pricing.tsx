@@ -48,10 +48,10 @@ const Pricing: React.FC = () => {
           />
           
           <PricingCard
-            name="Enterprise"
+            name="Plus"
             price="$29.99"
             period="monthly"
-            description="For teams and organizations"
+            description="For teams"
             features={[
               "Everything in Pro",
               "Unlimited team members",
