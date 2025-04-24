@@ -5,9 +5,9 @@ import Footer from '../components/Footer';
 import climateChangeData from '../data/climate-change-timeline.json';
 
 // Helper function to generate color placeholder
-const generateColorPlaceholder = (width: number, height: number, text: string) => {
-  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${width}' height='${height}' viewBox='0 0 ${width} ${height}'%3E%3Crect width='${width}' height='${height}' fill='%231d9bf0'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='24' text-anchor='middle' fill='white' dominant-baseline='middle'%3E${text}%3C/text%3E%3C/svg%3E`;
-};
+// const generateColorPlaceholder = (width: number, height: number, text: string) => {
+//   return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${width}' height='${height}' viewBox='0 0 ${width} ${height}'%3E%3Crect width='${width}' height='${height}' fill='%231d9bf0'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='24' text-anchor='middle' fill='white' dominant-baseline='middle'%3E${text}%3C/text%3E%3C/svg%3E`;
+// };
 
 const Home: React.FC = () => {
   const [showFullTimeline, setShowFullTimeline] = useState(false);
