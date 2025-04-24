@@ -16,11 +16,11 @@ interface TimelineItem {
   keyInsight?: string;
 }
 
-interface TimelineData {
-  topic: string;
-  totalEntries: number;
-  timeline: TimelineItem[];
-}
+// interface TimelineData {
+//   topic: string;
+//   totalEntries: number;
+//   timeline: TimelineItem[];
+// }
 
 const TimeonarApp: React.FC = () => {
   const [topic, setTopic] = useState<string>('');
