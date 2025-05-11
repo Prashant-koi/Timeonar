@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "hm6KrvShppg=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\koira\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.4\\microsoft.aspnetcore.openapi.9.0.4.nupkg.sha512",
+    "C:\\Users\\koira\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}
