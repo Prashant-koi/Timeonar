@@ -23,8 +23,15 @@ public class PerplexityClient
     {
         try
         {
-            // Get API key from configuration
-            var apiKey = _configuration["SonarApi:ApiKey"];
+            // Get API key from configuration or environment variable
+            var apiKey = _configuration["SonarApi:ApiKey"] ?? 
+                         Environment.GetEnvironmentVariable("SONARAPI_APIKEY");
+            
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                _logger.LogError("API key for Perplexity API not found");
+                throw new InvalidOperationException("Perplexity API key not configured");
+            }
             
             // Set up authentication header
             _httpClient.DefaultRequestHeaders.Clear();

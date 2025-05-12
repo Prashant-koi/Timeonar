@@ -17,6 +17,8 @@ interface TimelineItem {
   keyInsight?: string;
 }
 
+const API_URL = import.meta.env.VITE_API_ENDPOINT || 'https://timeonar-api.azurewebsites.net';
+
 const TimeonarApp: React.FC = () => {
   const [topic, setTopic] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,8 +42,7 @@ const TimeonarApp: React.FC = () => {
     setTopic(searchTopic);
     
     try {
-      // Updated to use HTTP instead of HTTPS for local development
-      const response = await fetch(`http://localhost:5256/api/Timeline/${encodeURIComponent(searchTopic)}`);
+      const response = await fetch(`${API_URL}/api/Timeline/${encodeURIComponent(searchTopic)}`);
       
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}`);
