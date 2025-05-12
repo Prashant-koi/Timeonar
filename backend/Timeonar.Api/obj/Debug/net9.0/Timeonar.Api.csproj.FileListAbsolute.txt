@@ -35,3 +35,4 @@ C:\Users\koira\Programming\hackathon\Timeonar\backend\Timeonar.Api\obj\Debug\net
 C:\Users\koira\Programming\hackathon\Timeonar\backend\Timeonar.Api\obj\Debug\net9.0\Timeonar.Api.pdb
 C:\Users\koira\Programming\hackathon\Timeonar\backend\Timeonar.Api\obj\Debug\net9.0\Timeonar.Api.genruntimeconfig.cache
 C:\Users\koira\Programming\hackathon\Timeonar\backend\Timeonar.Api\obj\Debug\net9.0\ref\Timeonar.Api.dll
+C:\Users\koira\Programming\hackathon\Timeonar\backend\Timeonar.Api\bin\Debug\net9.0\appsettings.example.json

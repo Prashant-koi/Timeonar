@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import climateChangeData from '../data/climate-change-timeline.json';
+import mockMachineLearningData from '../data/machine-learning-timeline.json';
 
 // Helper function to generate color placeholder
 // const generateColorPlaceholder = (width: number, height: number, text: string) => {
@@ -14,8 +14,8 @@ const Home: React.FC = () => {
   const [demoData, setDemoData] = useState<any[]>([]);
   
   useEffect(() => {
-    // Just load the most recent 3 entries for the preview
-    const previewData = [...climateChangeData.timeline]
+    // loading 3 entires for preview
+    const previewData = [...mockMachineLearningData.timeline]
       .sort((a, b) => b.year - a.year)
       .slice(0, 3);
     
@@ -54,7 +54,7 @@ const Home: React.FC = () => {
             <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden shadow-2xl">
               <div className="p-3 bg-gray-900 border-b border-gray-800 flex justify-between items-center">
                 <h3 className="text-lg font-bold flex items-center">
-                  <span className="mr-2">Climate Change Policies Timeline</span>
+                  <span className="mr-2">Machine Learning Timeline</span>
                   <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">DEMO</span>
                 </h3>
               </div>
@@ -145,7 +145,7 @@ const Home: React.FC = () => {
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 md:p-8">
             <div className="mb-4 flex justify-between items-center">
               <h3 className="text-2xl font-bold flex items-center">
-                <span className="mr-2">Climate Change Policies Timeline</span>
+                <span className="mr-2">Machine Learning Timeline</span>
                 <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">DEMO</span>
               </h3>
               
@@ -160,7 +160,7 @@ const Home: React.FC = () => {
             {/* Demo Timeline Display */}
             <div className="overflow-y-auto max-h-[600px]">
               <div className="border-l-2 border-gray-800 ml-6 mt-3">
-                {(showFullTimeline ? climateChangeData.timeline : demoData)
+                {(showFullTimeline ? mockMachineLearningData.timeline : demoData)
                   .sort((a, b) => b.year - a.year)
                   .map((item) => (
                     <div key={item.id} className="relative ml-6 mb-8">
@@ -175,6 +175,14 @@ const Home: React.FC = () => {
                             {item.year}
                           </div>
                         </div>
+                        
+                        {/* Display discovery if available */}
+                        {item.discovery && (
+                          <div className="mb-4 bg-green-500/10 p-3 rounded border-l-4 border-green-500">
+                            <div className="font-bold text-sm text-green-400 mb-1">DISCOVERY:</div>
+                            <p className="text-gray-300">{item.discovery}</p>
+                          </div>
+                        )}
                         
                         <p className="text-gray-300 mb-4">{item.summary}</p>
                         

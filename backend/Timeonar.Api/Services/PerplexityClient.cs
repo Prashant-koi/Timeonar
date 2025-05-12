@@ -30,14 +30,17 @@ public class PerplexityClient
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
             
+            // Get a detailed prompt from the SonarPromptBuilder
+            var prompt = SonarPromptBuilder.BuildTimelinePrompt(topic);
+
             // Prepare the request to Perplexity
             var requestBody = new 
             {
-                model = "sonar",
+                model = "sonar-pro",
                 messages = new[]
                 {
-                    new { role = "system", content = "Create a timeline of key developments for the given topic. Format the response as JSON with this structure: {\"topic\": \"string\", \"timeline\": [{\"id\": \"string\", \"year\": number, \"title\": \"string\", \"summary\": \"string\", \"source\": \"string\", \"url\": \"string\", \"authors\": [\"string\"], \"citationCount\": number, \"keyInsight\": \"string\"}]}" },
-                    new { role = "user", content = $"Create a timeline of key developments for: {topic}" }
+                    new { role = "system", content = "You are a specialized timeline generation assistant. Provide responses only in valid JSON format." },
+                    new { role = "user", content = prompt }
                 }
             };
 

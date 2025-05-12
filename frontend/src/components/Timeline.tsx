@@ -10,6 +10,7 @@ interface TimelineItem {
   authors: string[];
   citationCount: number;
   keyInsight?: string;
+  discovery?: string; // Added discovery property
 }
 
 interface TimelineProps {
@@ -89,6 +90,15 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                   
                   <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 hover:border-blue-500 transition-all">
                     <h4 className="text-lg font-bold mb-2">{item.title}</h4>
+                    
+                    {/* Display the discovery information if available */}
+                    {item.discovery && (
+                      <div className="mb-4 bg-green-500/10 p-3 rounded border-l-4 border-green-500">
+                        <div className="font-bold text-sm text-green-400 mb-1">DISCOVERY:</div>
+                        <p className="text-gray-300">{item.discovery}</p>
+                      </div>
+                    )}
+                    
                     <p className="text-gray-300 mb-4">{item.summary}</p>
                     
                     {item.keyInsight && (

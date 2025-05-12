@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Timeline from '../components/Timeline';
 import TimelineControls from '../components/TimelineControls';
-import mockAiData from '../data/ai-effects-timeline.json';
+import mockMachineLearningData from '../data/machine-learning-timeline.json';
 
 interface TimelineItem {
   id: string;
   year: number;
   title: string;
+  discovery?: string; // Added discovery property
   summary: string;
   source: string;
   url: string;
@@ -15,12 +16,6 @@ interface TimelineItem {
   citationCount: number;
   keyInsight?: string;
 }
-
-// interface TimelineData {
-//   topic: string;
-//   totalEntries: number;
-//   timeline: TimelineItem[];
-// }
 
 const TimeonarApp: React.FC = () => {
   const [topic, setTopic] = useState<string>('');
@@ -32,8 +27,8 @@ const TimeonarApp: React.FC = () => {
   // Load mock data on initial load
   useEffect(() => {
     if (!isMockDataLoaded) {
-      setTimelineData(mockAiData.timeline);
-      setTopic(mockAiData.topic);
+      setTimelineData(mockMachineLearningData.timeline);
+      setTopic(mockMachineLearningData.topic);
       setIsMockDataLoaded(true);
     }
   }, [isMockDataLoaded]);
@@ -69,11 +64,9 @@ const TimeonarApp: React.FC = () => {
       console.error("Error fetching timeline data:", error);
       setIsLoading(false);
       
-      // Fallback to mock data
-      if (searchTopic.toLowerCase() === 'ai' || 
-          searchTopic.toLowerCase() === 'ai and its effects' || 
-          searchTopic.toLowerCase() === 'artificial intelligence') {
-        setTimelineData(mockAiData.timeline);
+      // Fallback to mock data - now use Machine Learning data as default
+      if (searchTopic.toLowerCase() === 'machine learning') {
+        setTimelineData(mockMachineLearningData.timeline);
       } else {
         const mockData = generateMockTimelineData(searchTopic);
         setTimelineData(mockData);
@@ -97,11 +90,13 @@ const TimeonarApp: React.FC = () => {
         id: `entry-${i}`,
         year: year,
         title: `${topic} development in ${year}`,
+        discovery: `Key finding related to ${topic}`, // Added discovery field
         summary: `This significant research on ${topic} showed promising results that changed how we view the field.`,
         source: `Journal of ${topic.replace(/\s+/g, '')} Studies`,
         url: 'https://example.com/paper',
         authors: ['Dr. First Author', 'Dr. Second Author'],
-        citationCount: Math.floor(Math.random() * 1000)
+        citationCount: Math.floor(Math.random() * 1000),
+        keyInsight: `Changed our understanding of ${topic} by revealing new patterns and relationships.`
       });
     }
     
@@ -139,7 +134,7 @@ const TimeonarApp: React.FC = () => {
               <div className="text-6xl mb-4">🔍</div>
               <h2 className="text-2xl font-bold mb-2">Search for a topic to begin</h2>
               <p className="text-gray-400">
-                Try searching for topics like "AI and its effects", "Climate change policies", 
+                Try searching for topics like "Machine Learning", "Climate change", 
                 or "Quantum computing" to see how they've evolved over time.
               </p>
             </div>
