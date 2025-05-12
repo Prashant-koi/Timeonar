@@ -45,27 +45,39 @@ const TimeonarApp: React.FC = () => {
     setTopic(searchTopic);
     
     try {
-      // This would be replaced with actual API call to Sonar
-      if (searchTopic.toLowerCase() === 'ai' || 
-          searchTopic.toLowerCase() === 'ai and its effects' || 
-          searchTopic.toLowerCase() === 'artificial intelligence') {
-        // Use our mock data for these specific searches
-        setTimeout(() => {
-          setTimelineData(mockAiData.timeline);
-          setIsLoading(false);
-        }, 1000);
-      } else {
-        // Generate random data for other searches
-        // In the future, this would be an API call to the backend
-        setTimeout(() => {
-          const mockData = generateMockTimelineData(searchTopic);
-          setTimelineData(mockData);
-          setIsLoading(false);
-        }, 2000);
+      // Updated to use HTTP instead of HTTPS for local development
+      const response = await fetch(`http://localhost:5256/api/Timeline/${encodeURIComponent(searchTopic)}`);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
+      
+      const data = await response.json();
+      console.log("API Response:", data); // Add this to debug the response format
+      
+      // Check if the data has the expected structure
+      if (data.timeline) {
+        setTimelineData(data.timeline);
+      } else {
+        // If the API returns a different format than expected
+        console.warn("Unexpected API response format:", data);
+        setTimelineData([]); // Or handle as appropriate
+      }
+      
+      setIsLoading(false);
     } catch (error) {
       console.error("Error fetching timeline data:", error);
       setIsLoading(false);
+      
+      // Fallback to mock data
+      if (searchTopic.toLowerCase() === 'ai' || 
+          searchTopic.toLowerCase() === 'ai and its effects' || 
+          searchTopic.toLowerCase() === 'artificial intelligence') {
+        setTimelineData(mockAiData.timeline);
+      } else {
+        const mockData = generateMockTimelineData(searchTopic);
+        setTimelineData(mockData);
+      }
     }
   };
 
