@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj": {}
+    "c:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj": {
+    "c:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
+        "projectUniqueName": "c:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
         "projectName": "Timeonar.Api",
-        "projectPath": "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
+        "projectPath": "c:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
         "packagesPath": "C:\\Users\\koira\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\obj\\",
+        "outputPath": "c:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\koira\\AppData\\Roaming\\NuGet\\NuGet.Config"

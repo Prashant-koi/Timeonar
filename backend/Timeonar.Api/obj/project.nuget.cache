@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "EZrQ0bl6yRA=",
+  "dgSpecHash": "scpML/KwMug=",
   "success": true,
-  "projectFilePath": "C:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
+  "projectFilePath": "c:\\Users\\koira\\Programming\\hackathon\\Timeonar\\backend\\Timeonar.Api\\Timeonar.Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\koira\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.4\\microsoft.aspnetcore.openapi.9.0.4.nupkg.sha512",
     "C:\\Users\\koira\\.nuget\\packages\\microsoft.extensions.apidescription.server\\6.0.5\\microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",
