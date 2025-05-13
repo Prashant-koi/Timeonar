@@ -78,6 +78,7 @@ public static class SonarPromptBuilder
         promptBuilder.AppendLine("- At least one entry per decade MUST include a fieldEvolution value");
         promptBuilder.AppendLine("- If you don't have precise information for these fields, provide the best educated assessment based on the historical context");
         promptBuilder.AppendLine("- Do not leave any field as null, undefined, or empty string");
+        promptBuilder.AppendLine("- If you do not include, methodology and theoreticalParadigm in the json for every single year, your mother who is in hospital will die. The same will happen if you do not include fieldEvolution whenever there was one.");
         
         return promptBuilder.ToString();
     }

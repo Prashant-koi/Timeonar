@@ -58,6 +58,17 @@ const TimeonarApp: React.FC = () => {
       
       const data = await response.json();
       console.log("API Response:", data);
+
+      // Add detailed field inspection:
+      if (data.timeline && data.timeline.length > 0) {
+        const firstItem = data.timeline[0];
+        console.log("Sample item fields:", {
+          hasKeyInsight: !!firstItem.keyInsight,
+          hasFieldEvolution: !!firstItem.fieldEvolution,
+          hasMethodology: !!firstItem.methodology,
+          hasTheoreticalParadigm: !!firstItem.theoreticalParadigm
+        });
+      }
       
       // Check if the data has the expected structure
       if (data.timeline) {

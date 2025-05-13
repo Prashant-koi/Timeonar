@@ -8,11 +8,12 @@ interface TimelineItem {
   source: string;
   url: string;
   authors: string[];
-  citationCount: number;
+  citationCount?: number; 
   keyInsight?: string;
-  discovery?: string; // Added discovery property
-  fieldEvolution?: string; // Added fieldEvolution property
-  methodology?: string; // Added methodology property
+  discovery?: string;
+  fieldEvolution?: string;
+  methodology?: string;
+  theoreticalParadigm?: string; 
 }
 
 interface TimelineProps {
@@ -121,6 +122,13 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                       <div className="mb-4 bg-green-500/10 p-3 rounded border-l-4 border-green-500">
                         <div className="font-bold text-sm text-green-400 mb-1">METHODOLOGY:</div>
                         <p className="text-gray-300">{item.methodology}</p>
+                      </div>
+                    )}
+
+                    {item.theoreticalParadigm && (
+                      <div className="mb-4 bg-amber-500/10 p-3 rounded border-l-4 border-amber-500">
+                        <div className="font-bold text-sm text-amber-400 mb-1">THEORETICAL PARADIGM:</div>
+                        <p className="text-gray-300">{item.theoreticalParadigm}</p>
                       </div>
                     )}
                     
