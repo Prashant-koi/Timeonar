@@ -16,7 +16,7 @@ public static class SonarPromptBuilder
     {
         var promptBuilder = new StringBuilder();
         
-        // Introduction and task definition with emphasis on key discoveries and relevant research
+        // Introduction and task definition
         promptBuilder.AppendLine($"Create a comprehensive timeline of key scientific discoveries, breakthroughs, and milestone research papers related to \"{topic}\". Focus on what was actually discovered or established during each time period, not just citation information.");
         
         // Instructions for quality and depth with improved specificity
@@ -29,8 +29,8 @@ public static class SonarPromptBuilder
         promptBuilder.AppendLine("6. Focus on tangible outcomes and findings, not just publication metadata");
         promptBuilder.AppendLine("7. For each discovery, name the specific researchers who made the breakthrough");
         promptBuilder.AppendLine("8. Different discoveries from the same year should be separate entries");
-        promptBuilder.AppendLine("9. Identify major methodology shifts that changed how research was conducted");
-        promptBuilder.AppendLine("10. Track the evolution of dominant theories or paradigms over time");
+        promptBuilder.AppendLine("9. IMPORTANT: For EVERY entry, describe the methodology used to achieve the discovery");
+        promptBuilder.AppendLine("10. IMPORTANT: For EVERY entry, identify the theoretical paradigm it operated within or challenged");
         
         // Requirements for output structure
         promptBuilder.AppendLine("\nStructural requirements:");
@@ -41,12 +41,13 @@ public static class SonarPromptBuilder
         promptBuilder.AppendLine("- Provide DOI links or direct links to the original research papers");
         promptBuilder.AppendLine("- List all major researchers involved in the discovery");
         promptBuilder.AppendLine("- Include citation counts to indicate the discovery's impact");
-        promptBuilder.AppendLine("- For each entry, the \"Key Insight\" should explain how the discovery changed understanding of the field");
-        promptBuilder.AppendLine("- For each decade or major era, provide a 'field_evolution' insight that summarizes how the field changed");
-        promptBuilder.AppendLine("- Highlight intellectual debates or competing theories when they significantly influenced the field");
+        promptBuilder.AppendLine("- For each entry, the \"keyInsight\" field MUST explain how the discovery changed understanding of the field");
+        promptBuilder.AppendLine("- For each entry, the \"methodology\" field MUST explain the research methods, tools, or approaches used");
+        promptBuilder.AppendLine("- For each entry, the \"theoreticalParadigm\" field MUST describe the theoretical framework the research operated within");
+        promptBuilder.AppendLine("- For each decade or significant era, at least one entry MUST include a 'fieldEvolution' insight that summarizes how the field changed during that period");
         
         // Output format instructions
-        promptBuilder.AppendLine("\nYou MUST format the response as valid JSON that strictly follows this structure:");
+        promptBuilder.AppendLine("\nYou MUST format the response as valid JSON that strictly follows this structure, with NO fields left empty:");
         promptBuilder.AppendLine(@"{
   ""topic"": ""string"",
   ""timeline"": [
@@ -68,8 +69,15 @@ public static class SonarPromptBuilder
   ]
 }");
         
-        // Final instruction for formatting with emphasis on actual discoveries
-        promptBuilder.AppendLine("\nDo not include any explanation, introduction, or additional text outside the JSON structure. The response must be valid JSON that can be directly parsed. Each entry MUST focus on an actual scientific discovery or breakthrough, not just a paper being published. If multiple major discoveries happened in one year, create separate entries for each one.");
+        // Final instruction with emphasis on completeness of all fields
+        promptBuilder.AppendLine("\nCritical requirements:");
+        promptBuilder.AppendLine("- Do not include any explanation, introduction, or additional text outside the JSON structure");
+        promptBuilder.AppendLine("- The response must be valid JSON that can be directly parsed");
+        promptBuilder.AppendLine("- Each entry MUST focus on an actual scientific discovery or breakthrough");
+        promptBuilder.AppendLine("- EVERY entry MUST include values for methodology and theoreticalParadigm fields");
+        promptBuilder.AppendLine("- At least one entry per decade MUST include a fieldEvolution value");
+        promptBuilder.AppendLine("- If you don't have precise information for these fields, provide the best educated assessment based on the historical context");
+        promptBuilder.AppendLine("- Do not leave any field as null, undefined, or empty string");
         
         return promptBuilder.ToString();
     }
