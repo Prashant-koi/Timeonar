@@ -8,13 +8,16 @@ interface TimelineItem {
   id: string;
   year: number;
   title: string;
-  discovery?: string; // Added discovery property
+  discovery?: string;
   summary: string;
   source: string;
   url: string;
   authors: string[];
   citationCount: number;
   keyInsight?: string;
+  fieldEvolution?: string;
+  methodology?: string;
+  theoreticalParadigm?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_ENDPOINT || 'https://timeonar-api.azurewebsites.net';
@@ -29,7 +32,9 @@ const TimeonarApp: React.FC = () => {
   // Load mock data on initial load
   useEffect(() => {
     if (!isMockDataLoaded) {
-      setTimelineData(mockMachineLearningData.timeline);
+      // Type cast to ensure TypeScript understands the structure
+      const typedData = mockMachineLearningData.timeline as TimelineItem[];
+      setTimelineData(typedData);
       setTopic(mockMachineLearningData.topic);
       setIsMockDataLoaded(true);
     }
@@ -42,6 +47,9 @@ const TimeonarApp: React.FC = () => {
     setTopic(searchTopic);
     
     try {
+      // Log the API URL for debugging
+      console.log(`Fetching from: ${API_URL}/api/Timeline/${encodeURIComponent(searchTopic)}`);
+      
       const response = await fetch(`${API_URL}/api/Timeline/${encodeURIComponent(searchTopic)}`);
       
       if (!response.ok) {
@@ -49,15 +57,15 @@ const TimeonarApp: React.FC = () => {
       }
       
       const data = await response.json();
-      console.log("API Response:", data); // Add this to debug the response format
+      console.log("API Response:", data);
       
       // Check if the data has the expected structure
       if (data.timeline) {
-        setTimelineData(data.timeline);
+        // Type cast to ensure TypeScript understands the structure
+        setTimelineData(data.timeline as TimelineItem[]);
       } else {
-        // If the API returns a different format than expected
         console.warn("Unexpected API response format:", data);
-        setTimelineData([]); // Or handle as appropriate
+        setTimelineData([]);
       }
       
       setIsLoading(false);
@@ -67,7 +75,8 @@ const TimeonarApp: React.FC = () => {
       
       // Fallback to mock data - now use Machine Learning data as default
       if (searchTopic.toLowerCase() === 'machine learning') {
-        setTimelineData(mockMachineLearningData.timeline);
+        const typedData = mockMachineLearningData.timeline as TimelineItem[];
+        setTimelineData(typedData);
       } else {
         const mockData = generateMockTimelineData(searchTopic);
         setTimelineData(mockData);
@@ -83,7 +92,7 @@ const TimeonarApp: React.FC = () => {
   const generateMockTimelineData = (topic: string): TimelineItem[] => {
     const currentYear = new Date().getFullYear();
     const yearsBack = 30;
-    const result = [];
+    const result: TimelineItem[] = [];
     
     for (let i = 0; i < 12; i++) {
       const year = currentYear - Math.floor(Math.random() * yearsBack);
@@ -91,13 +100,15 @@ const TimeonarApp: React.FC = () => {
         id: `entry-${i}`,
         year: year,
         title: `${topic} development in ${year}`,
-        discovery: `Key finding related to ${topic}`, // Added discovery field
+        discovery: `Key finding related to ${topic}`,
         summary: `This significant research on ${topic} showed promising results that changed how we view the field.`,
         source: `Journal of ${topic.replace(/\s+/g, '')} Studies`,
         url: 'https://example.com/paper',
         authors: ['Dr. First Author', 'Dr. Second Author'],
         citationCount: Math.floor(Math.random() * 1000),
-        keyInsight: `Changed our understanding of ${topic} by revealing new patterns and relationships.`
+        keyInsight: `Changed our understanding of ${topic} by revealing new patterns and relationships.`,
+        fieldEvolution: `This discovery represented a shift in how ${topic} was approached.`,
+        methodology: `Novel experimental design that combined multiple research methods.`
       });
     }
     

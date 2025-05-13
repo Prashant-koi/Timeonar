@@ -29,6 +29,8 @@ public static class SonarPromptBuilder
         promptBuilder.AppendLine("6. Focus on tangible outcomes and findings, not just publication metadata");
         promptBuilder.AppendLine("7. For each discovery, name the specific researchers who made the breakthrough");
         promptBuilder.AppendLine("8. Different discoveries from the same year should be separate entries");
+        promptBuilder.AppendLine("9. Identify major methodology shifts that changed how research was conducted");
+        promptBuilder.AppendLine("10. Track the evolution of dominant theories or paradigms over time");
         
         // Requirements for output structure
         promptBuilder.AppendLine("\nStructural requirements:");
@@ -40,6 +42,8 @@ public static class SonarPromptBuilder
         promptBuilder.AppendLine("- List all major researchers involved in the discovery");
         promptBuilder.AppendLine("- Include citation counts to indicate the discovery's impact");
         promptBuilder.AppendLine("- For each entry, the \"Key Insight\" should explain how the discovery changed understanding of the field");
+        promptBuilder.AppendLine("- For each decade or major era, provide a 'field_evolution' insight that summarizes how the field changed");
+        promptBuilder.AppendLine("- Highlight intellectual debates or competing theories when they significantly influenced the field");
         
         // Output format instructions
         promptBuilder.AppendLine("\nYou MUST format the response as valid JSON that strictly follows this structure:");
@@ -56,7 +60,10 @@ public static class SonarPromptBuilder
       ""url"": ""string"",
       ""authors"": [""string""],
       ""citationCount"": number,
-      ""keyInsight"": ""string""
+      ""keyInsight"": ""string"",
+      ""fieldEvolution"": ""string"",
+      ""methodology"": ""string"",
+      ""theoreticalParadigm"": ""string""
     }
   ]
 }");

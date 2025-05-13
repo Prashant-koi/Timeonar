@@ -11,6 +11,8 @@ interface TimelineItem {
   citationCount: number;
   keyInsight?: string;
   discovery?: string; // Added discovery property
+  fieldEvolution?: string; // Added fieldEvolution property
+  methodology?: string; // Added methodology property
 }
 
 interface TimelineProps {
@@ -105,6 +107,20 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                       <div className="mb-4 bg-blue-500/10 p-3 rounded border-l-4 border-blue-500">
                         <div className="font-bold text-sm text-blue-400 mb-1">KEY INSIGHT:</div>
                         <p className="text-gray-300 italic">{item.keyInsight}</p>
+                      </div>
+                    )}
+
+                    {item.fieldEvolution && (
+                      <div className="mb-4 bg-purple-500/10 p-3 rounded border-l-4 border-purple-500">
+                        <div className="font-bold text-sm text-purple-400 mb-1">FIELD EVOLUTION:</div>
+                        <p className="text-gray-300 italic">{item.fieldEvolution}</p>
+                      </div>
+                    )}
+
+                    {item.methodology && (
+                      <div className="mb-4 bg-green-500/10 p-3 rounded border-l-4 border-green-500">
+                        <div className="font-bold text-sm text-green-400 mb-1">METHODOLOGY:</div>
+                        <p className="text-gray-300">{item.methodology}</p>
                       </div>
                     )}
                     

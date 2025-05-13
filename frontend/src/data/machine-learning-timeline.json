@@ -180,6 +180,14 @@
       "authors": ["OpenAI"],
       "citationCount": 580,
       "keyInsight": "Bridged the gap between vision and language understanding in AI systems, enabling more natural human-AI interaction through combined processing of multiple information modalities."
+    },
+    {
+      "id": "ml-1956",
+      "year": 1956,
+      "title": "The Birth of Artificial Intelligence",
+      "fieldEvolution": "This decade marked the transition from theoretical discussions about thinking machines to actual implementations of programs that could mimic certain aspects of human intelligence.",
+      "methodology": "Early AI research primarily used symbolic approaches, focusing on logic and rule-based systems.",
+      "theoreticalParadigm": "The dominant paradigm was that intelligence could be created through formal symbol manipulation rules."
     }
   ]
 }
