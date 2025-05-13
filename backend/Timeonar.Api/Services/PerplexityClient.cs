@@ -41,9 +41,11 @@ public class PerplexityClient
             var prompt = SonarPromptBuilder.BuildTimelinePrompt(topic);
 
             // Prepare the request to Perplexity
-            var requestBody = new 
+            var requestBody = new
             {
                 model = "sonar-pro",
+                max_tokens = 8000, // new token limit
+                temperature = 0.7,
                 messages = new[]
                 {
                     new { role = "system", content = "You are a specialized timeline generation assistant. Provide responses only in valid JSON format." },
@@ -120,4 +122,4 @@ public class PerplexityClient
             return new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
         }
     }
-}
+} 
