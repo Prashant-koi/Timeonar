@@ -65,9 +65,26 @@ const TimeonarApp = () => {
           console.log("📊 Parsed baseData, timeline entries:", baseData.Timeline?.length || 0);
           
           if (baseData.Timeline && Array.isArray(baseData.Timeline)) {
+            // Define an interface for the backend timeline item structure
+            interface BackendTimelineItem {
+              Id?: string;
+              Year?: number;
+              Title?: string;
+              Discovery?: string;
+              Summary?: string;
+              Source?: string;
+              Url?: string | null;
+              Authors?: string[];
+              CitationCount?: string | number;
+              KeyInsight?: string;
+              Methodology?: string;
+              TheoreticalParadigm?: string;
+              FieldEvolution?: string;
+            }
+
             // Convert the data structure to match your frontend model
             // Note the casing difference between backend (uppercase) and frontend (lowercase)
-            const normalizedData = baseData.Timeline.map(item => ({
+            const normalizedData = baseData.Timeline.map((item: BackendTimelineItem) => ({
               id: item.Id || "",
               year: item.Year || 0,
               title: item.Title || "",
@@ -76,7 +93,7 @@ const TimeonarApp = () => {
               source: item.Source || "",
               url: item.Url || "",
               authors: item.Authors || [],
-              citationCount: item.CitationCount || "0",
+              citationCount: item.CitationCount?.toString() || "0",
               keyInsight: item.KeyInsight || "",
               methodology: item.Methodology || "",
               theoreticalParadigm: item.TheoreticalParadigm || "",
