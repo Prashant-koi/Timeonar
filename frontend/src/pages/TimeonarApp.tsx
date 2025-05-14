@@ -7,6 +7,23 @@ import { mockMachineLearningData } from '../data/mockData';
 import { TimelineItem } from '../types/timeline';
 import ErrorAlert from '../components/ErrorAlert';
 
+// Move the interface outside the function to improve reusability
+interface BackendTimelineItem {
+  Id?: string;
+  Year?: number;
+  Title?: string;
+  Discovery?: string;
+  Summary?: string;
+  Source?: string;
+  Url?: string | null;
+  Authors?: string[];
+  CitationCount?: string | number;
+  KeyInsight?: string;
+  Methodology?: string;
+  TheoreticalParadigm?: string;
+  FieldEvolution?: string;
+}
+
 const TimeonarApp = () => {
   const [searchParams] = useSearchParams();
   const [topic, setTopic] = useState<string>('');
@@ -65,25 +82,7 @@ const TimeonarApp = () => {
           console.log("📊 Parsed baseData, timeline entries:", baseData.Timeline?.length || 0);
           
           if (baseData.Timeline && Array.isArray(baseData.Timeline)) {
-            // Define an interface for the backend timeline item structure
-            interface BackendTimelineItem {
-              Id?: string;
-              Year?: number;
-              Title?: string;
-              Discovery?: string;
-              Summary?: string;
-              Source?: string;
-              Url?: string | null;
-              Authors?: string[];
-              CitationCount?: string | number;
-              KeyInsight?: string;
-              Methodology?: string;
-              TheoreticalParadigm?: string;
-              FieldEvolution?: string;
-            }
-
-            // Convert the data structure to match your frontend model
-            // Note the casing difference between backend (uppercase) and frontend (lowercase)
+            // Now use the interface for type safety
             const normalizedData = baseData.Timeline.map((item: BackendTimelineItem) => ({
               id: item.Id || "",
               year: item.Year || 0,
