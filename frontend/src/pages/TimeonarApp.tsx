@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Timeline from '../components/Timeline';
@@ -15,6 +15,11 @@ const TimeonarApp = () => {
   const [error, setError] = useState<string | null>(null);
   const [isMockDataLoaded, setIsMockDataLoaded] = useState(false);
   const [filterYear, setFilterYear] = useState<number | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string>('');
+  const [debugMode, setDebugMode] = useState(false);
+  
+  // Keep track of partially loaded data
+  const isPartiallyLoaded = useRef(false);
 
   // API URL - adjust based on your backend setup
   const API_URL = 'http://localhost:5256';
@@ -37,27 +42,230 @@ const TimeonarApp = () => {
     
     setIsLoading(true);
     setTopic(searchTopic);
-    setTimelineData([]);
+    setTimelineData([]);  // Clear existing data
     setError(null);
+    setLoadingMessage('Starting timeline generation...');
+    isPartiallyLoaded.current = false;
     
     try {
-      const response = await fetch(`${API_URL}/api/Timeline/${encodeURIComponent(searchTopic)}`);
+      // Create an EventSource connection
+      console.log("🔄 Establishing SSE connection to backend...");
+      const eventSource = new EventSource(`${API_URL}/api/Timeline/stream/${encodeURIComponent(searchTopic)}`);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      // Connection opened successfully
+      eventSource.onopen = () => {
+        console.log("✅ SSE connection established successfully");
+      };
       
-      const data = await response.json();
+      // Basic timeline data
+      eventSource.addEventListener('baseData', (event) => {
+        console.log("📥 Received baseData from backend:", event.data);
+        try {
+          const baseData = JSON.parse(event.data);
+          console.log("📊 Parsed baseData, timeline entries:", baseData.Timeline?.length || 0);
+          
+          if (baseData.Timeline && Array.isArray(baseData.Timeline)) {
+            // Convert the data structure to match your frontend model
+            // Note the casing difference between backend (uppercase) and frontend (lowercase)
+            const normalizedData = baseData.Timeline.map(item => ({
+              id: item.Id || "",
+              year: item.Year || 0,
+              title: item.Title || "",
+              discovery: item.Discovery || "",
+              summary: item.Summary || "",
+              source: item.Source || "",
+              url: item.Url || "",
+              authors: item.Authors || [],
+              citationCount: item.CitationCount || "0",
+              keyInsight: item.KeyInsight || "",
+              methodology: item.Methodology || "",
+              theoreticalParadigm: item.TheoreticalParadigm || "",
+              fieldEvolution: item.FieldEvolution || ""
+            }));
+            
+            console.log("🔄 Normalized data for frontend:", normalizedData.length);
+            
+            // Force immediate update with the normalized data
+            isPartiallyLoaded.current = true;
+            setTopic(baseData.Topic || "");
+            setTimelineData(normalizedData);
+            setLoadingMessage('Enhancing with methodology information...');
+            
+            // Force additional update to ensure React renders
+            setTimeout(() => {
+              // This will trigger another render cycle
+              setTimelineData(current => [...current]);
+            }, 10);
+          } else {
+            console.error("❌ Invalid timeline data format:", baseData);
+          }
+        } catch (error) {
+          console.error('Error parsing baseData:', error);
+        }
+      });
       
-      if (data.timeline && Array.isArray(data.timeline)) {
-        setTimelineData(data.timeline);
-      } else {
-        setError('The API returned an invalid response format.');
-      }
+      // Individual methodology updates
+      eventSource.addEventListener('methodologyUpdate', (event) => {
+        console.log("📥 Received methodologyUpdate from backend:", event.data);
+        try {
+          const updatedItem = JSON.parse(event.data);
+          
+          // Check if we have a valid item with an ID
+          if (!updatedItem) {
+            console.error("❌ Invalid methodology update data", updatedItem);
+            return;
+          }
+          
+          // Normalize data - convert uppercase keys to lowercase
+          const normalizedUpdate = {
+            id: updatedItem.Id || "",
+            year: updatedItem.Year || 0,
+            title: updatedItem.Title || "",
+            discovery: updatedItem.Discovery || "",
+            summary: updatedItem.Summary || "",
+            source: updatedItem.Source || "",
+            url: updatedItem.Url || "",
+            authors: updatedItem.Authors || [],
+            citationCount: updatedItem.CitationCount || "0",
+            keyInsight: updatedItem.KeyInsight || "",
+            methodology: updatedItem.Methodology || "",
+            theoreticalParadigm: updatedItem.TheoreticalParadigm || "",
+            fieldEvolution: updatedItem.FieldEvolution || ""
+          };
+          
+          console.log(`📝 Updating item: ${normalizedUpdate.id} - ${normalizedUpdate.title} with methodology data`);
+          
+          // Update the timeline data by finding the item with matching year and title
+          setTimelineData(currentData => {
+            const index = currentData.findIndex(item => 
+              (item.id === normalizedUpdate.id) || 
+              (item.year === normalizedUpdate.year && item.title.toLowerCase() === normalizedUpdate.title.toLowerCase())
+            );
+            
+            if (index === -1) {
+              console.warn(`⚠️ Could not find matching item for year ${normalizedUpdate.year} - ${normalizedUpdate.title}`);
+              return currentData;
+            }
+            
+            // Create a completely new array with the updated item
+            const newData = [...currentData];
+            newData[index] = {
+              ...newData[index], 
+              methodology: normalizedUpdate.methodology,
+              theoreticalParadigm: normalizedUpdate.theoreticalParadigm
+            };
+            
+            console.log(`✅ Updated methodology for "${newData[index].title}" (${newData[index].year})`);
+            
+            return newData;
+          });
+          
+          // Force a re-render by updating another state
+          requestAnimationFrame(() => {
+            setLoadingMessage(current => current + " 🔄");
+            setTimeout(() => {
+              setLoadingMessage(current => current.replace(" 🔄", ""));
+            }, 10);
+          });
+        } catch (error) {
+          console.error('Error parsing methodologyUpdate:', error);
+        }
+      });
+      
+      // Individual source updates
+      eventSource.addEventListener('sourceUpdate', (event) => {
+        console.log("📥 Received sourceUpdate from backend:", event.data);
+        try {
+          const updatedItem = JSON.parse(event.data);
+          
+          // Normalize data - convert uppercase keys to lowercase
+          const normalizedUpdate = {
+            id: updatedItem.Id || "",
+            year: updatedItem.Year || 0,
+            title: updatedItem.Title || "",
+            discovery: updatedItem.Discovery || "",
+            summary: updatedItem.Summary || "",
+            source: updatedItem.Source || "",
+            url: updatedItem.Url || "",
+            authors: updatedItem.Authors || [],
+            citationCount: updatedItem.CitationCount || "0",
+            keyInsight: updatedItem.KeyInsight || "",
+            methodology: updatedItem.Methodology || "",
+            theoreticalParadigm: updatedItem.TheoreticalParadigm || "",
+            fieldEvolution: updatedItem.FieldEvolution || ""
+          };
+          
+          console.log(`📚 Updating item: ${normalizedUpdate.id} - ${normalizedUpdate.title} with source data`);
+          
+          // Update the timeline data with the source information
+          setTimelineData(currentData => {
+            const index = currentData.findIndex(item => 
+              (item.id === normalizedUpdate.id) || 
+              (item.year === normalizedUpdate.year && item.title.toLowerCase() === normalizedUpdate.title.toLowerCase())
+            );
+            
+            if (index === -1) {
+              console.warn(`⚠️ Could not find matching item for year ${normalizedUpdate.year} - ${normalizedUpdate.title}`);
+              return currentData;
+            }
+            
+            // Create a completely new array with the updated item
+            const newData = [...currentData];
+            newData[index] = {
+              ...newData[index],
+              source: normalizedUpdate.source,
+              url: normalizedUpdate.url,
+              authors: normalizedUpdate.authors,
+              citationCount: normalizedUpdate.citationCount
+            };
+            
+            console.log(`✅ Updated source info for "${newData[index].title}" (${newData[index].year})`);
+            
+            return newData;
+          });
+          
+          // Use requestAnimationFrame to ensure UI updates
+          requestAnimationFrame(() => {
+            setLoadingMessage(current => current.startsWith("Adding") ? 
+              "Adding source information and citations... 📚" : current);
+          });
+        } catch (error) {
+          console.error('Error parsing sourceUpdate:', error);
+        }
+      });
+
+      // Methodology completion
+      eventSource.addEventListener('methodologyComplete', (event) => {
+        console.log("✅ Methodology enrichment complete:", event.data);
+        setLoadingMessage('Adding source information and citations...');
+      });
+      
+      // Status updates
+      eventSource.addEventListener('status', (event) => {
+        console.log("ℹ️ Status update:", event.data);
+        setLoadingMessage(event.data);
+      });
+      
+      // Complete event
+      eventSource.addEventListener('complete', (event) => {
+        console.log("✅ Timeline generation complete:", event.data);
+        setLoadingMessage('');
+        setIsLoading(false);
+        eventSource.close();
+        console.log("🔒 SSE connection closed");
+      });
+      
+      // Error handling
+      eventSource.addEventListener('error', (event) => {
+        console.error("❌ SSE Error:", event);
+        setError('An error occurred while generating the timeline.');
+        setIsLoading(false);
+        eventSource.close();
+        console.log("🔒 SSE connection closed due to error");
+      });
     } catch (error) {
-      console.error('Error fetching timeline:', error);
-      setError('An error occurred while fetching the timeline data. Please try again later.');
-    } finally {
+      console.error('Error initiating timeline stream:', error);
+      setError('An error occurred while connecting to the timeline service.');
       setIsLoading(false);
     }
   };
@@ -91,31 +299,83 @@ const TimeonarApp = () => {
           )}
           
           <div className="mt-8">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="relative w-16 h-16">
-                  {/* First segment - horizontal */}
-                  <div className="absolute inset-0 border-2 border-blue-500 rounded-full border-t-transparent border-b-transparent animate-spin"></div>
-                  {/* Second segment - vertical */}
-                  <div className="absolute inset-0 border-2 border-blue-500 rounded-full border-r-transparent border-l-transparent animate-spin" style={{ animationDelay: "0.2s" }}></div>
-                </div>
-                <p className="mt-4 text-gray-400">Generating timeline data...</p>
-              </div>
-            ) : timelineData.length > 0 ? (
-              <Timeline 
-                data={filteredTimelineData} 
-                topic={topic} 
-              />
-            ) : (
-              <div className="bg-gray-900 rounded-lg border border-gray-800 p-8 text-center">
-                <h3 className="text-xl font-bold text-gray-300 mb-2">No Timeline Generated Yet</h3>
-                <p className="text-gray-500">
-                  Enter a topic like "Machine Learning", "Climate Change", 
-                  or "Quantum computing" to see how they've evolved over time.
-                </p>
-              </div>
-            )}
+            {(() => {
+              // Log the state to verify what's happening
+              console.log("Render state:", { 
+                isLoading, 
+                isPartiallyLoaded: isPartiallyLoaded.current,
+                dataLength: timelineData.length
+              });
+              
+              if (isLoading && !isPartiallyLoaded.current) {
+                // Show initial loading spinner when no data yet
+                return (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="relative w-16 h-16">
+                      {/* First segment - horizontal */}
+                      <div className="absolute inset-0 border-2 border-blue-500 rounded-full border-t-transparent border-b-transparent animate-spin"></div>
+                      {/* Second segment - vertical */}
+                      <div className="absolute inset-0 border-2 border-blue-500 rounded-full border-r-transparent border-l-transparent animate-spin" style={{ animationDelay: "0.2s" }}></div>
+                    </div>
+                    <p className="mt-4 text-gray-400">{loadingMessage || 'Generating timeline data...'}</p>
+                  </div>
+                );
+              } else if (timelineData.length > 0) {
+                // Show timeline when we have data (even if still loading more)
+                return (
+                  <>
+                    {isLoading && (
+                      <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-6 flex items-center">
+                        <div className="w-5 h-5 mr-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-blue-300">{loadingMessage || 'Still loading more data...'}</p>
+                      </div>
+                    )}
+                    <Timeline 
+                      data={filteredTimelineData} 
+                      topic={topic} 
+                    />
+                  </>
+                );
+              } else {
+                // Show empty state
+                return (
+                  <div className="bg-gray-900 rounded-lg border border-gray-800 p-8 text-center">
+                    <h3 className="text-xl font-bold text-gray-300 mb-2">No Timeline Generated Yet</h3>
+                    <p className="text-gray-500">
+                      Enter a topic like "Machine Learning", "Climate Change", 
+                      or "Quantum computing" to see how they've evolved over time.
+                    </p>
+                  </div>
+                );
+              }
+            })()}
           </div>
+
+          {debugMode && timelineData.length > 0 && (
+            <div className="mt-8 p-4 bg-gray-900 rounded-lg border border-gray-700">
+              <div className="flex justify-between mb-4">
+                <h3 className="text-sm font-mono">Debug: Timeline Data</h3>
+                <button 
+                  onClick={() => setDebugMode(false)}
+                  className="text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded"
+                >
+                  Hide
+                </button>
+              </div>
+              <pre className="text-xs text-gray-400 overflow-auto max-h-96">
+                {JSON.stringify(timelineData, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {!debugMode && (
+            <button 
+              onClick={() => setDebugMode(true)}
+              className="mt-2 text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded text-gray-500"
+            >
+              Debug Mode
+            </button>
+          )}
         </div>
       </main>
     </div>

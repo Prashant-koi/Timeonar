@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Timeonar.Api.Models;
 
@@ -148,11 +149,17 @@ public class PerplexityClient
         }
     }
 
-    public async Task EnrichEntryWithMethodologyData(TimelineItem entry, string topic)
+    public async Task EnrichEntryWithMethodologyData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
     {
         try
         {
-            // Build a focused prompt using the basic entry information to get methodology info
+            // Check cancellation before starting
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            // Build a comprehensive prompt focused on methodology
             var methodologyPrompt = $@"For this historical discovery in the field of {topic}, provide ONLY methodology and theoretical paradigm information:
 
 Year: {entry.Year}
@@ -162,10 +169,10 @@ Summary: {entry.Summary}
 Key Insight: {entry.KeyInsight}
 
 Provide ONLY these two fields in JSON format:
-1. methodology - detailed description of the research methods, tools, or approaches used
-2. theoreticalParadigm - explanation of the conceptual framework the research operated within or challenged
+1. methodology - detailed description of the research methods, experimental design, tools, or approaches used
+2. theoreticalParadigm - explanation of the conceptual framework this research operated within or challenged
 
-Your response must ONLY contain a valid JSON object with these two fields, nothing else.";
+Your response must ONLY contain a valid JSON object with these two fields and nothing else. Be detailed and accurate based on the historical context.";
 
             var methodologyRequestBody = new
             {
@@ -174,17 +181,23 @@ Your response must ONLY contain a valid JSON object with these two fields, nothi
                 temperature = 0.0,
                 messages = new[]
                 {
-                    new { role = "system", content = "You are a research methodology specialist who ONLY provides information about research methods and theoretical frameworks. Respond ONLY with a JSON object containing methodology and theoreticalParadigm fields." },
+                    new { role = "system", content = "You are a research methodology specialist who ONLY provides detailed information about scientific methods and theoretical frameworks. Respond ONLY with valid JSON containing methodology and theoreticalParadigm fields." },
                     new { role = "user", content = methodologyPrompt }
                 }
             };
 
-            var methodologyContent = new StringContent(
+            var methodologyHttpContent = new StringContent(
                 JsonSerializer.Serialize(methodologyRequestBody),
                 Encoding.UTF8,
                 "application/json");
 
-            var methodologyResponse = await _httpClient.PostAsync("chat/completions", methodologyContent);
+            // Add cancellation checks at key points
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var methodologyResponse = await _httpClient.PostAsync("chat/completions", methodologyHttpContent, cancellationToken);
             var methodologyResponseJson = await methodologyResponse.Content.ReadAsStringAsync();
             
             if (!methodologyResponse.IsSuccessStatusCode)
@@ -227,6 +240,11 @@ Your response must ONLY contain a valid JSON object with these two fields, nothi
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation token is triggered
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error enriching entry {Year} - {Title} with methodology data", 
@@ -234,10 +252,16 @@ Your response must ONLY contain a valid JSON object with these two fields, nothi
         }
     }
 
-    public async Task EnrichEntryWithSourceData(TimelineItem entry, string topic)
+    public async Task EnrichEntryWithSourceData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
     {
         try
         {
+            // Check cancellation before starting
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             // Build a comprehensive prompt using ALL previously gathered information
             var sourcePrompt = $@"For this historical discovery in the field of {topic}, provide ONLY academic source information:
 
@@ -274,7 +298,13 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                 Encoding.UTF8,
                 "application/json");
 
-            var sourceResponse = await _httpClient.PostAsync("chat/completions", sourceHttpContent);
+            // Add cancellation checks at key points
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var sourceResponse = await _httpClient.PostAsync("chat/completions", sourceHttpContent, cancellationToken);
             var sourceResponseJson = await sourceResponse.Content.ReadAsStringAsync();
             
             if (!sourceResponse.IsSuccessStatusCode)
@@ -297,7 +327,13 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                 
                 try
                 {
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    // Add more options for flexible deserialization
+                    var options = new JsonSerializerOptions { 
+                        PropertyNameCaseInsensitive = true,
+                        AllowTrailingCommas = true,
+                        ReadCommentHandling = JsonCommentHandling.Skip
+                    };
+                    
                     var sourceInfo = JsonSerializer.Deserialize<SourceInfo>(sourceInfoJson, options);
                     
                     if (sourceInfo != null)
@@ -312,12 +348,84 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                             entry.Year, entry.Title);
                     }
                 }
-                catch (Exception ex)
+                catch (JsonException ex)
                 {
-                    _logger.LogError(ex, "Error parsing source info JSON for entry {Year} - {Title}", 
-                        entry.Year, entry.Title);
+                    _logger.LogError(ex, "Error parsing source info JSON for entry {Year} - {Title}: {Json}", 
+                        entry.Year, entry.Title, sourceInfoJson);
+                        
+                    // Enhanced fallback approach with more detailed parsing
+                    try {
+                        using var doc = JsonDocument.Parse(sourceInfoJson);
+                        var root = doc.RootElement;
+                        
+                        if (root.TryGetProperty("source", out var sourceElement))
+                            entry.Source = sourceElement.GetString() ?? entry.Source;
+                            
+                        if (root.TryGetProperty("url", out var urlElement))
+                            entry.Url = urlElement.GetString() ?? entry.Url;
+                        
+                        // Advanced authors extraction
+                        if (root.TryGetProperty("authors", out var authorsElement))
+                        {
+                            var authors = new List<string>();
+                            
+                            switch (authorsElement.ValueKind)
+                            {
+                                case JsonValueKind.String:
+                                    var authorString = authorsElement.GetString() ?? string.Empty;
+                                    if (!string.IsNullOrWhiteSpace(authorString))
+                                    {
+                                        if (authorString.Contains(","))
+                                            authors.AddRange(authorString.Split(',').Select(a => a.Trim()));
+                                        else
+                                            authors.Add(authorString);
+                                    }
+                                    break;
+                                    
+                                case JsonValueKind.Array:
+                                    foreach (var element in authorsElement.EnumerateArray())
+                                    {
+                                        if (element.ValueKind == JsonValueKind.String)
+                                        {
+                                            var author = element.GetString();
+                                            if (!string.IsNullOrWhiteSpace(author))
+                                                authors.Add(author);
+                                        }
+                                    }
+                                    break;
+                            }
+                            
+                            if (authors.Count > 0)
+                                entry.Authors = authors;
+                        }
+                            
+                        if (root.TryGetProperty("citationCount", out var citationCountElement))
+                        {
+                            switch (citationCountElement.ValueKind)
+                            {
+                                case JsonValueKind.Number:
+                                    entry.CitationCount = citationCountElement.GetInt32().ToString();
+                                    break;
+                                case JsonValueKind.String:
+                                    entry.CitationCount = citationCountElement.GetString() ?? "0";
+                                    break;
+                            }
+                        }
+                        
+                        _logger.LogInformation("Successfully extracted source data using fallback method for {Year} - {Title}", 
+                            entry.Year, entry.Title);
+                    }
+                    catch (Exception fallbackEx) {
+                        _logger.LogError(fallbackEx, "Fallback JSON parsing also failed for {Year} - {Title}", 
+                            entry.Year, entry.Title);
+                    }
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation token is triggered
+            throw;
         }
         catch (Exception ex)
         {
@@ -634,7 +742,100 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
     {
         public string Source { get; set; } = string.Empty;
         public string Url { get; set; } = string.Empty;
+        [JsonConverter(typeof(FlexibleAuthorsConverter))]
         public List<string> Authors { get; set; } = new List<string>();
-        public int CitationCount { get; set; }
+        public string CitationCount { get; set; } = "0";  // No converter needed
+    }
+
+    // Updated FlexibleAuthorsConverter class to handle more formats
+    private class FlexibleAuthorsConverter : JsonConverter<List<string>>
+    {
+        public override List<string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.String:
+                    // If it's a string, convert it to a list with one item
+                    string authorString = reader.GetString() ?? string.Empty;
+                    if (string.IsNullOrEmpty(authorString))
+                        return new List<string>();
+                        
+                    // Handle comma-separated authors in a single string
+                    if (authorString.Contains(","))
+                        return authorString.Split(',').Select(a => a.Trim()).ToList();
+                        
+                    return new List<string> { authorString };
+                    
+                case JsonTokenType.StartArray:
+                    // Standard array handling
+                    var authors = new List<string>();
+                    while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                    {
+                        if (reader.TokenType == JsonTokenType.String)
+                        {
+                            string? author = reader.GetString();
+                            if (!string.IsNullOrEmpty(author))
+                                authors.Add(author);
+                        }
+                    }
+                    return authors;
+                    
+                case JsonTokenType.Null:
+                    // Handle null value
+                    return new List<string>();
+                    
+                case JsonTokenType.StartObject:
+                    // Sometimes the API returns an object with author properties
+                    // Skip the object and return empty list
+                    int depth = 1;
+                    while (depth > 0 && reader.Read())
+                    {
+                        if (reader.TokenType == JsonTokenType.StartObject)
+                            depth++;
+                        else if (reader.TokenType == JsonTokenType.EndObject)
+                            depth--;
+                    }
+                    return new List<string>();
+                    
+                default:
+                    // For any other token type, try to read through it and return empty
+                    return new List<string>();
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            foreach (var author in value)
+            {
+                writer.WriteStringValue(author);
+            }
+            writer.WriteEndArray();
+        }
+    }
+
+    // Add a new converter for flexible int parsing
+    private class FlexibleIntConverter : JsonConverter<int>
+    {
+        public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                return reader.GetInt32();
+            }
+            else if (reader.TokenType == JsonTokenType.String)
+            {
+                string? value = reader.GetString();
+                if (int.TryParse(value, out int result))
+                    return result;
+            }
+            
+            return 0;
+        }
+
+        public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
+        {
+            writer.WriteNumberValue(value);
+        }
     }
 }

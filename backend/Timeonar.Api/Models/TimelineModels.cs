@@ -17,7 +17,7 @@ public class TimelineItem
     public string Source { get; set; } = "";
     public string? Url { get; set; }
     public List<string> Authors { get; set; } = new List<string>();
-    public int CitationCount { get; set; }
+    public string CitationCount { get; set; } = "0"; // Changed from int to string to handle formats like "1000+"
     public string? KeyInsight { get; set; }
     
     public string? Methodology { get; set; }
