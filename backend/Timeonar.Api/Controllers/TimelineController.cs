@@ -9,11 +9,16 @@ namespace Timeonar.Api.Controllers;
 public class TimelineController : ControllerBase
 {
     private readonly PerplexityClient _perplexityClient;
+    private readonly ProgressiveTimelineService _progressiveTimelineService;
     private readonly ILogger<TimelineController> _logger;
 
-    public TimelineController(PerplexityClient perplexityClient, ILogger<TimelineController> logger)
+    public TimelineController(
+        PerplexityClient perplexityClient, 
+        ProgressiveTimelineService progressiveTimelineService,
+        ILogger<TimelineController> logger)
     {
         _perplexityClient = perplexityClient;
+        _progressiveTimelineService = progressiveTimelineService;
         _logger = logger;
     }
 
@@ -30,6 +35,21 @@ public class TimelineController : ControllerBase
         {
             _logger.LogError(ex, "Error processing timeline request for topic {Topic}", topic);
             return StatusCode(500, new { error = "An error occurred processing your request" });
+        }
+    }
+
+    [HttpGet("progressive/{topic}")]
+    public async Task<ActionResult<TimelineData>> GetProgressiveTimeline(string topic)
+    {
+        try
+        {
+            var timeline = await _progressiveTimelineService.GetCompleteTimelineAsync(topic);
+            return Ok(timeline);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating progressive timeline for topic {Topic}", topic);
+            return StatusCode(500, new { error = "Error generating timeline" });
         }
     }
 }

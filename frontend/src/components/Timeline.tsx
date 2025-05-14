@@ -1,20 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-
-interface TimelineItem {
-  id: string;
-  year: number;
-  title: string;
-  summary: string;
-  source: string;
-  url: string;
-  authors: string[];
-  citationCount?: number; 
-  keyInsight?: string;
-  discovery?: string;
-  fieldEvolution?: string;
-  methodology?: string;
-  theoreticalParadigm?: string; 
-}
+import { TimelineItem } from '../types/timeline';
 
 interface TimelineProps {
   data: TimelineItem[];
@@ -72,7 +57,7 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
         </p>
       </div>
       
-      <div ref={containerRef} className="overflow-y-auto max-h-[70vh] pr-2">
+      <div ref={containerRef} className="overflow-y-auto max-h-[80vh] pr-2">
         {years.map((year) => (
           <div key={year} className="mb-12">
             <div className="sticky top-0 bg-black z-10 py-2">
@@ -91,8 +76,15 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                     <div className="bg-blue-500 border-4 border-black h-4 w-4 rounded-full"></div>
                   </div>
                   
-                  <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 hover:border-blue-500 transition-all">
-                    <h4 className="text-lg font-bold mb-2">{item.title}</h4>
+                  <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-blue-500 transition-all">
+                    
+                    {/* Title row with more space */}
+                    <div className="flex justify-between items-start gap-4 mb-4">
+                      <h4 className="text-xl font-bold">{item.title}</h4>
+                      <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm shrink-0">
+                        {item.year}
+                      </div>
+                    </div>
                     
                     {/* Display the discovery information if available */}
                     {item.discovery && (
@@ -111,24 +103,24 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                       </div>
                     )}
 
-                    {item.fieldEvolution && (
-                      <div className="mb-4 bg-purple-500/10 p-3 rounded border-l-4 border-purple-500">
-                        <div className="font-bold text-sm text-purple-400 mb-1">FIELD EVOLUTION:</div>
-                        <p className="text-gray-300 italic">{item.fieldEvolution}</p>
+                    {item.fieldEvolution && item.fieldEvolution.trim() !== "" && (
+                      <div className="mb-5 bg-purple-500/10 p-4 rounded border-l-4 border-purple-500">
+                        <div className="font-bold text-sm text-purple-400 mb-2">FIELD EVOLUTION:</div>
+                        <p className="text-gray-300 italic leading-relaxed">{item.fieldEvolution}</p>
                       </div>
                     )}
 
-                    {item.methodology && (
-                      <div className="mb-4 bg-green-500/10 p-3 rounded border-l-4 border-green-500">
-                        <div className="font-bold text-sm text-green-400 mb-1">METHODOLOGY:</div>
-                        <p className="text-gray-300">{item.methodology}</p>
+                    {item.methodology && item.methodology.trim() !== "" && (
+                      <div className="mb-5 bg-green-500/10 p-4 rounded border-l-4 border-green-500">
+                        <div className="font-bold text-sm text-green-400 mb-2">METHODOLOGY:</div>
+                        <p className="text-gray-300 leading-relaxed">{item.methodology}</p>
                       </div>
                     )}
 
-                    {item.theoreticalParadigm && (
-                      <div className="mb-4 bg-amber-500/10 p-3 rounded border-l-4 border-amber-500">
-                        <div className="font-bold text-sm text-amber-400 mb-1">THEORETICAL PARADIGM:</div>
-                        <p className="text-gray-300">{item.theoreticalParadigm}</p>
+                    {item.theoreticalParadigm && item.theoreticalParadigm.trim() !== "" && (
+                      <div className="mb-5 bg-amber-500/10 p-4 rounded border-l-4 border-amber-500">
+                        <div className="font-bold text-sm text-amber-400 mb-2">THEORETICAL PARADIGM:</div>
+                        <p className="text-gray-300 leading-relaxed">{item.theoreticalParadigm}</p>
                       </div>
                     )}
                     
@@ -138,7 +130,7 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                           <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
                           <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"></path>
                         </svg>
-                        {item.source}
+                        {item.source || "Unknown source"}
                       </span>
                       
                       <span className="flex items-center bg-gray-800/50 px-2 py-1 rounded">

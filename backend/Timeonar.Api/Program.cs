@@ -25,6 +25,8 @@ builder.Services.AddCors(options =>
 
 // Register the Perplexity client
 builder.Services.AddScoped<PerplexityClient>();
+// Register the Progressive Timeline service
+builder.Services.AddScoped<ProgressiveTimelineService>();
 
 var app = builder.Build();
 
