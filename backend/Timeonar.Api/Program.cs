@@ -1,6 +1,22 @@
 using Timeonar.Api.Services;
+using DotNetEnv; // Add this NuGet package
+
+// Load environment variables from .env file
+try
+{
+    DotNetEnv.Env.Load();
+    Console.WriteLine("Environment variables loaded from .env file");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Warning: Failed to load .env file: {ex.Message}");
+    // Continue execution even if .env file is not found
+}
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add configuration from environment variables
+builder.Configuration.AddEnvironmentVariables();
 
 // Add services to the container
 builder.Services.AddControllers();

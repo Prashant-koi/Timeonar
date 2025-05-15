@@ -13,14 +13,17 @@ public class TimelineController : ControllerBase
     private readonly PerplexityClient _perplexityClient;
     private readonly ProgressiveTimelineService _progressiveTimelineService;
     private readonly ILogger<TimelineController> _logger;
+    private readonly IConfiguration _configuration;
 
     public TimelineController(
         PerplexityClient perplexityClient, 
         ProgressiveTimelineService progressiveTimelineService,
+        IConfiguration configuration,
         ILogger<TimelineController> logger)
     {
         _perplexityClient = perplexityClient;
         _progressiveTimelineService = progressiveTimelineService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -58,6 +61,16 @@ public class TimelineController : ControllerBase
     [HttpGet("stream/{topic}")]
     public async Task GetTimelineStream(string topic)
     {
+        // Validate the request origin
+        if (!IsValidOrigin(Request))
+        {
+            _logger.LogWarning("Unauthorized access attempt from origin: {Origin}", 
+                Request.Headers.Origin.ToString());
+            Response.StatusCode = 403; // Forbidden
+            await Response.WriteAsync("Access denied: Invalid origin");
+            return;
+        }
+
         // Set response headers
         Response.Headers.Add("Content-Type", "text/event-stream");
         Response.Headers.Add("Cache-Control", "no-cache");
@@ -174,5 +187,18 @@ public class TimelineController : ControllerBase
             _logger.LogError(ex, "Error writing event to stream");
             throw;
         }
+    }
+
+    private bool IsValidOrigin(HttpRequest request)
+    {
+        var origin = request.Headers.Origin.ToString();
+        var allowedOrigins = new[] 
+        { 
+            "https://timeonar.vercel.app",
+            "http://localhost:5173" // For local development
+        };
+        
+        // Check if the origin header exists and is in our allowed list
+        return !string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin);
     }
 }
