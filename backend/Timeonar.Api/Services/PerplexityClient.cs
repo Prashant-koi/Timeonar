@@ -9,15 +9,21 @@ namespace Timeonar.Api.Services;
 
 public class PerplexityClient
 {
-    private readonly HttpClient _httpClient = new HttpClient();
-    private readonly IConfiguration _configuration;
+    private readonly HttpClient _httpClient;
     private readonly ILogger<PerplexityClient> _logger;
+    private readonly string _apiKey;
 
     public PerplexityClient(IConfiguration configuration, ILogger<PerplexityClient> logger)
     {
-        _configuration = configuration;
+        _httpClient = new HttpClient();
         _logger = logger;
-        _httpClient.BaseAddress = new Uri("https://api.perplexity.ai/");
+        
+        // Get API key from configuration (which can read from environment variables)
+        _apiKey = configuration["SonarApi:ApiKey"] ?? 
+                  throw new InvalidOperationException("Perplexity API key is not configured");
+                  
+        // Example for using Azure API key when needed
+        var azureApiKey = configuration["Azure:ApiKey"];
     }
 
     public async Task<TimelineData> GetTimelineAsync(string topic)
@@ -25,16 +31,14 @@ public class PerplexityClient
         try
         {
             // Get API key and setup
-            var apiKey = _configuration["SonarApi:ApiKey"] ?? Environment.GetEnvironmentVariable("SONARAPI_APIKEY");
-            
-            if (string.IsNullOrEmpty(apiKey))
+            if (string.IsNullOrEmpty(_apiKey))
             {
                 _logger.LogError("API key for Perplexity API not found");
                 throw new InvalidOperationException("Perplexity API key not configured");
             }
             
             _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             
             // STEP 1: Generate basic timeline entries (years, titles, discoveries, summaries, keyInsights)
             _logger.LogInformation("Step 1: Generating basic timeline data for topic: {Topic}", topic);
@@ -98,16 +102,14 @@ public class PerplexityClient
         try
         {
             // Get API key and setup
-            var apiKey = _configuration["SonarApi:ApiKey"] ?? Environment.GetEnvironmentVariable("SONARAPI_APIKEY");
-            
-            if (string.IsNullOrEmpty(apiKey))
+            if (string.IsNullOrEmpty(_apiKey))
             {
                 _logger.LogError("API key for Perplexity API not found");
                 throw new InvalidOperationException("Perplexity API key not configured");
             }
             
             _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             
             // Generate basic timeline entries
             var basePrompt = SonarPromptBuilder.BuildBaseTimelinePrompt(topic);
@@ -482,16 +484,14 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
         try
         {
             // Get API key and setup
-            var apiKey = _configuration["SonarApi:ApiKey"] ?? Environment.GetEnvironmentVariable("SONARAPI_APIKEY");
-            
-            if (string.IsNullOrEmpty(apiKey))
+            if (string.IsNullOrEmpty(_apiKey))
             {
                 _logger.LogError("API key for Perplexity API not found");
                 throw new InvalidOperationException("Perplexity API key not configured");
             }
             
             _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             
             var requestBody = new 
             {

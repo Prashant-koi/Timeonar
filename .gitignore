@@ -20,6 +20,8 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+.env
+
 # Visual Studio files
 .vs/
 *.user
