@@ -274,10 +274,25 @@ const TimeonarApp = () => {
       // Error handling
       eventSource.addEventListener('error', (event) => {
         console.error("❌ SSE Error:", event);
-        setError('An error occurred while generating the timeline.');
+        
+        // Access the error data if available
+        const errorMessage = event instanceof MessageEvent && event.data 
+          ? event.data 
+          : 'An error occurred while generating the timeline.';
+          
+        setError(`Error: ${errorMessage}`);
         setIsLoading(false);
         eventSource.close();
         console.log("🔒 SSE connection closed due to error");
+        
+        // Fallback to mock data for better user experience
+        if (!isPartiallyLoaded.current) {
+          setTimeout(() => {
+            setTimelineData(mockMachineLearningData.timeline);
+            setTopic(`${searchTopic} (Sample Data)`);
+            setError(`Could not generate timeline for "${searchTopic}". Showing sample data instead.`);
+          }, 1000);
+        }
       });
     } catch (error) {
       console.error('Error initiating timeline stream:', error);

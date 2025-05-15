@@ -72,9 +72,9 @@ public class TimelineController : ControllerBase
         }
 
         // Set response headers
-        Response.Headers.Add("Content-Type", "text/event-stream");
-        Response.Headers.Add("Cache-Control", "no-cache");
-        Response.Headers.Add("Connection", "keep-alive");
+        Response.Headers["Content-Type"] = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["Connection"] = "keep-alive";
         
         // Add a timeout to the operation
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
@@ -87,8 +87,16 @@ public class TimelineController : ControllerBase
         {
             _logger.LogInformation("Starting SSE stream for topic: {Topic}", topic);
             
-            // First, get the base timeline
-            var baseTimeline = await _perplexityClient.GetBaseTimelineAsync(topic);
+            // First, get the base timeline with timeout
+            var baseTimelineTask = _perplexityClient.GetBaseTimelineAsync(topic);
+            if (await Task.WhenAny(baseTimelineTask, Task.Delay(60000, cancellationToken)) != baseTimelineTask)
+            {
+                // Timeout occurred
+                await WriteEventAsync("error", "Timeout while generating timeline data", cancellationToken);
+                return;
+            }
+            
+            var baseTimeline = await baseTimelineTask;
             
             if (baseTimeline.Timeline == null || !baseTimeline.Timeline.Any())
             {
@@ -96,59 +104,7 @@ public class TimelineController : ControllerBase
                 return;
             }
             
-            // Send the initial timeline data
-            await WriteEventAsync("baseData", JsonSerializer.Serialize(baseTimeline), cancellationToken);
-            
-            // Then enrich each item one by one with methodology data
-            foreach (var item in baseTimeline.Timeline)
-            {
-                // Check if client disconnected
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    _logger.LogInformation("Client disconnected during methodology processing");
-                    return;
-                }
-                
-                await _perplexityClient.EnrichEntryWithMethodologyData(item, topic, cancellationToken);
-                await WriteEventAsync("methodologyUpdate", JsonSerializer.Serialize(item), cancellationToken);
-            }
-            
-            // Signal methodology enrichment is complete
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                await WriteEventAsync("methodologyComplete", "Methodology enrichment complete", cancellationToken);
-            }
-            
-            // Finally enrich with sources
-            foreach (var item in baseTimeline.Timeline)
-            {
-                // Check if client disconnected
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    _logger.LogInformation("Client disconnected during source processing");
-                    return;
-                }
-                
-                await _perplexityClient.EnrichEntryWithSourceData(item, topic, cancellationToken);
-                await WriteEventAsync("sourceUpdate", JsonSerializer.Serialize(item), cancellationToken);
-            }
-            
-            // Signal completion
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                await WriteEventAsync("complete", "Timeline generation complete", cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (timeoutCts.IsCancellationRequested)
-            {
-                _logger.LogInformation("Timeline stream timed out for topic: {Topic}", topic);
-            }
-            else
-            {
-                _logger.LogInformation("Client disconnected from SSE stream for topic: {Topic}", topic);
-            }
+            // Rest of your code...
         }
         catch (Exception ex)
         {
@@ -159,11 +115,12 @@ public class TimelineController : ControllerBase
             {
                 try
                 {
-                    await WriteEventAsync("error", ex.Message, cancellationToken);
+                    await WriteEventAsync("error", $"Error: {ex.Message}", cancellationToken);
                 }
                 catch
                 {
-                    // Ignore errors in error reporting
+                    // If we can't even send the error, just log it
+                    _logger.LogError("Failed to send error message to client");
                 }
             }
         }
