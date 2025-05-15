@@ -8,13 +8,20 @@ interface TimelineProps {
 
 const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevTopicRef = useRef<string>(topic);
+  const prevDataLengthRef = useRef<number>(0);
 
   useEffect(() => {
-    // Scroll to top when data changes
-    if (containerRef.current) {
+    // Only scroll to top when the topic changes or when going from no data to having data
+    // Don't scroll when data is just being updated with new details
+    if (containerRef.current && (prevTopicRef.current !== topic || prevDataLengthRef.current === 0)) {
       containerRef.current.scrollTop = 0;
+      prevTopicRef.current = topic;
     }
-  }, [data]);
+    
+    // Store current data length for comparison
+    prevDataLengthRef.current = data.length;
+  }, [data, topic]);
 
   // Group timeline items by year
   const itemsByYear = data.reduce((acc, item) => {
@@ -178,4 +185,32 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
   );
 };
 
-export default Timeline;
+export default React.memo(Timeline, (prevProps, nextProps) => {
+  // Return false to re-render, true to skip rendering
+  
+  // Check for topic change
+  if (prevProps.topic !== nextProps.topic) return false;
+  
+  // Check if arrays have different lengths
+  if (prevProps.data.length !== nextProps.data.length) return false;
+  
+  // Deep comparison of item properties that might change
+  for (let i = 0; i < prevProps.data.length; i++) {
+    const prevItem = prevProps.data[i];
+    const nextItem = nextProps.data[i];
+    
+    // If any of these properties changed, we need to re-render
+    if (
+      prevItem.methodology !== nextItem.methodology ||
+      prevItem.theoreticalParadigm !== nextItem.theoreticalParadigm ||
+      prevItem.source !== nextItem.source ||
+      prevItem.url !== nextItem.url ||
+      prevItem.citationCount !== nextItem.citationCount ||
+      JSON.stringify(prevItem.authors) !== JSON.stringify(nextItem.authors)
+    ) {
+      return false; // Re-render
+    }
+  }
+  
+  return true; // Skip re-render if nothing changed
+});

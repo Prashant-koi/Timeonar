@@ -160,19 +160,19 @@ const TimeonarApp = () => {
             
             if (index === -1) {
               console.warn(`⚠️ Could not find matching item for year ${normalizedUpdate.year} - ${normalizedUpdate.title}`);
-              return currentData;
+              return currentData; // No change if item not found
             }
             
-            // Create a completely new array with the updated item
+            // Always create a new array with a new item object to ensure React detects the change
             const newData = [...currentData];
             newData[index] = {
-              ...newData[index], 
+              ...newData[index],
               methodology: normalizedUpdate.methodology,
-              theoreticalParadigm: normalizedUpdate.theoreticalParadigm
+              theoreticalParadigm: normalizedUpdate.theoreticalParadigm,
+              fieldEvolution: normalizedUpdate.fieldEvolution
             };
             
             console.log(`✅ Updated methodology for "${newData[index].title}" (${newData[index].year})`);
-            
             return newData;
           });
           

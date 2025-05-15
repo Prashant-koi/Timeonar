@@ -404,10 +404,13 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                             switch (citationCountElement.ValueKind)
                             {
                                 case JsonValueKind.Number:
-                                    entry.CitationCount = citationCountElement.GetInt32().ToString();
+                                    entry.CitationCount = citationCountElement.GetInt64().ToString();
                                     break;
                                 case JsonValueKind.String:
                                     entry.CitationCount = citationCountElement.GetString() ?? "0";
+                                    break;
+                                default:
+                                    entry.CitationCount = "0";
                                     break;
                             }
                         }
