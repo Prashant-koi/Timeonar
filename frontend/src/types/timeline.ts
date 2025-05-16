@@ -7,7 +7,7 @@ export interface TimelineItem {
   source?: string;
   url?: string;
   authors?: string[];
-  citationCount?: number;
+  citationCount?: string;
   keyInsight?: string;
   methodology?: string;
   theoreticalParadigm?: string;

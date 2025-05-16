@@ -18,12 +18,34 @@ public class PerplexityClient
         _httpClient = new HttpClient();
         _logger = logger;
         
-        // Get API key from configuration (which can read from environment variables)
-        _apiKey = configuration["SonarApi:ApiKey"] ?? 
-                  throw new InvalidOperationException("Perplexity API key is not configured");
-                  
-        // Example for using Azure API key when needed
-        var azureApiKey = configuration["Azure:ApiKey"];
+        // Log configuration source for debugging
+        _logger.LogInformation("Configuration sources: {Count}", 
+            (configuration as IConfigurationRoot)?.Providers.Count() ?? 0);
+        
+        // Try different ways to get API key
+        var apiKeyFromConfig = configuration["SonarApi:ApiKey"];
+        var apiKeyFromEnv = Environment.GetEnvironmentVariable("SONARAPI__APIKEY");
+        var apiKeyFallback = configuration["SONARAPI__APIKEY"];
+        
+        _logger.LogInformation("API key from config: {Present}", !string.IsNullOrEmpty(apiKeyFromConfig));
+        _logger.LogInformation("API key from env: {Present}", !string.IsNullOrEmpty(apiKeyFromEnv));
+        _logger.LogInformation("API key fallback: {Present}", !string.IsNullOrEmpty(apiKeyFallback));
+        
+        // Use first available API key
+        _apiKey = apiKeyFromConfig ?? apiKeyFromEnv ?? apiKeyFallback;
+        
+        if (string.IsNullOrEmpty(_apiKey))
+        {
+            _logger.LogError("No Perplexity API key found in configuration");
+        }
+        else
+        {
+            _logger.LogInformation("Using API key starting with: {Prefix}", 
+                _apiKey.Substring(0, Math.Min(5, _apiKey.Length)));
+            
+            // Set the base address for API requests
+            _httpClient.BaseAddress = new Uri("https://api.perplexity.ai/");
+        }
     }
 
     public async Task<TimelineData> GetTimelineAsync(string topic)
@@ -61,7 +83,7 @@ public class PerplexityClient
                 Encoding.UTF8,
                 "application/json");
 
-            var baseResponse = await _httpClient.PostAsync("chat/completions", baseContent);
+            var baseResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", baseContent);
             var baseResponseJson = await baseResponse.Content.ReadAsStringAsync();
             
             if (!baseResponse.IsSuccessStatusCode)
@@ -131,7 +153,7 @@ public class PerplexityClient
                 Encoding.UTF8,
                 "application/json");
 
-            var baseResponse = await _httpClient.PostAsync("chat/completions", baseContent);
+            var baseResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", baseContent);
             var baseResponseJson = await baseResponse.Content.ReadAsStringAsync();
             
             if (!baseResponse.IsSuccessStatusCode)
@@ -199,7 +221,7 @@ Your response must ONLY contain a valid JSON object with these two fields and no
                 return;
             }
 
-            var methodologyResponse = await _httpClient.PostAsync("chat/completions", methodologyHttpContent, cancellationToken);
+            var methodologyResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", methodologyHttpContent, cancellationToken);
             var methodologyResponseJson = await methodologyResponse.Content.ReadAsStringAsync();
             
             if (!methodologyResponse.IsSuccessStatusCode)
@@ -306,7 +328,7 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                 return;
             }
 
-            var sourceResponse = await _httpClient.PostAsync("chat/completions", sourceHttpContent, cancellationToken);
+            var sourceResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", sourceHttpContent, cancellationToken);
             var sourceResponseJson = await sourceResponse.Content.ReadAsStringAsync();
             
             if (!sourceResponse.IsSuccessStatusCode)
@@ -510,7 +532,7 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                 Encoding.UTF8,
                 "application/json");
 
-            var response = await _httpClient.PostAsync("chat/completions", content);
+            var response = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", content);
             var responseJson = await response.Content.ReadAsStringAsync();
             
             if (!response.IsSuccessStatusCode)

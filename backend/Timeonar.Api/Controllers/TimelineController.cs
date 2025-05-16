@@ -61,66 +61,137 @@ public class TimelineController : ControllerBase
     [HttpGet("stream/{topic}")]
     public async Task GetTimelineStream(string topic)
     {
-        // Validate the request origin
-        if (!IsValidOrigin(Request))
+        // IMPORTANT: First log the origin
+        var origin = Request.Headers.Origin.ToString();
+        _logger.LogInformation("Request from origin: {Origin}", origin);
+
+        // Get allowed origins
+        var originsConfig = _configuration["ALLOWED_ORIGINS"] ?? "https://timeonar.vercel.app,http://localhost:5173";
+        var allowedOrigins = originsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        _logger.LogInformation("Configured allowed origins: {AllowedOrigins}", string.Join(", ", allowedOrigins));
+
+        // Check if origin is valid
+        bool isValidOrigin = string.IsNullOrEmpty(origin) || allowedOrigins.Contains(origin);
+        _logger.LogInformation("Origin valid: {IsValid}", isValidOrigin);
+
+        // For CORS preflight requests
+        if (Request.Method == "OPTIONS")
         {
-            _logger.LogWarning("Unauthorized access attempt from origin: {Origin}", 
-                Request.Headers.Origin.ToString());
-            Response.StatusCode = 403; // Forbidden
-            await Response.WriteAsync("Access denied: Invalid origin");
+            Response.Headers.Add("Access-Control-Allow-Methods", "GET, OPTIONS");
+            Response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+            Response.Headers.Add("Access-Control-Max-Age", "86400");
+            Response.StatusCode = 204; // No content
             return;
         }
 
-        // Set response headers
+        // Add CORS headers for valid origins
+        if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
+        {
+            Response.Headers["Access-Control-Allow-Origin"] = origin;
+            Response.Headers["Access-Control-Allow-Credentials"] = "true";
+        }
+
+        // Set SSE response headers
         Response.Headers["Content-Type"] = "text/event-stream";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["Connection"] = "keep-alive";
-        
-        // Add a timeout to the operation
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-            timeoutCts.Token, 
-            HttpContext.RequestAborted);
-        var cancellationToken = linkedCts.Token;
-        
+
+        var cancellationToken = HttpContext.RequestAborted;
+
         try
         {
             _logger.LogInformation("Starting SSE stream for topic: {Topic}", topic);
+
+            // First, see if we can generate a simple response to verify the API connection
+            await WriteEventAsync("status", "Starting timeline generation...", cancellationToken);
+            await Task.Delay(500, cancellationToken); // Small delay to ensure headers are sent
+
+            // Send a heartbeat to keep the connection alive
+            await WriteEventAsync("heartbeat", DateTime.UtcNow.ToString("o"), cancellationToken);
             
-            // First, get the base timeline with timeout
-            var baseTimelineTask = _perplexityClient.GetBaseTimelineAsync(topic);
-            if (await Task.WhenAny(baseTimelineTask, Task.Delay(60000, cancellationToken)) != baseTimelineTask)
+            try
             {
-                // Timeout occurred
-                await WriteEventAsync("error", "Timeout while generating timeline data", cancellationToken);
-                return;
+                // Then try to get the base timeline
+                var baseTimeline = await _perplexityClient.GetBaseTimelineAsync(topic);
+
+                if (baseTimeline.Timeline == null || !baseTimeline.Timeline.Any())
+                {
+                    await WriteEventAsync("error", "Failed to generate timeline data", cancellationToken);
+                    return;
+                }
+
+                // Send the initial timeline data
+                await WriteEventAsync("baseData", JsonSerializer.Serialize(baseTimeline), cancellationToken);
+                await WriteEventAsync("status", "Base timeline generated successfully", cancellationToken);
+
+                try {
+                    // Now enrich with methodology information
+                    await WriteEventAsync("status", "Adding methodology and theoretical paradigm information...", cancellationToken);
+                    
+                    // Process each item to add methodology data
+                    foreach (var item in baseTimeline.Timeline) 
+                    {
+                        // Call the PerplexityClient to get methodology info
+                        await _perplexityClient.EnrichEntryWithMethodologyData(item, topic, cancellationToken);
+                        
+                        // Send the updated item to the client
+                        await WriteEventAsync("methodologyUpdate", JsonSerializer.Serialize(item), cancellationToken);
+                        
+                        // Add a small delay to prevent overwhelming the client and API
+                        await Task.Delay(200, cancellationToken);
+                    }
+                    
+                    // Signal that methodology enrichment is complete
+                    await WriteEventAsync("methodologyComplete", "Methodology enrichment complete", cancellationToken);
+                    
+                    // Now process source information
+                    await WriteEventAsync("status", "Adding source information and citations...", cancellationToken);
+                    
+                    // Process each item to add source data
+                    foreach (var item in baseTimeline.Timeline) 
+                    {
+                        // Call the PerplexityClient to get source info
+                        await _perplexityClient.EnrichEntryWithSourceData(item, topic, cancellationToken);
+                        
+                        // Send the updated item to the client
+                        await WriteEventAsync("sourceUpdate", JsonSerializer.Serialize(item), cancellationToken);
+                        
+                        // Add a small delay to prevent overwhelming the client and API
+                        await Task.Delay(200, cancellationToken);
+                    }
+                }
+                catch (Exception enrichException) {
+                    _logger.LogError(enrichException, "Error during timeline enrichment for {Topic}", topic);
+                    // Don't throw here, as we want to still signal completion with the base data
+                }
+
+                // Signal completion
+                await WriteEventAsync("complete", "Timeline generation complete", cancellationToken);
             }
-            
-            var baseTimeline = await baseTimelineTask;
-            
-            if (baseTimeline.Timeline == null || !baseTimeline.Timeline.Any())
+            catch (Exception ex)
             {
-                await WriteEventAsync("error", "Failed to generate timeline data", cancellationToken);
-                return;
+                _logger.LogError(ex, "Error while generating timeline for {Topic}", topic);
+                await WriteEventAsync("error", $"Error generating timeline: {ex.Message}", cancellationToken);
             }
-            
-            // Rest of your code...
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Client disconnected from SSE stream for topic: {Topic}", topic);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing timeline stream for topic: {Topic}", topic);
-            
+
             // Only try to send an error if the connection is still active
             if (!cancellationToken.IsCancellationRequested && !Response.HasStarted)
             {
                 try
                 {
-                    await WriteEventAsync("error", $"Error: {ex.Message}", cancellationToken);
+                    await WriteEventAsync("error", ex.Message, cancellationToken);
                 }
                 catch
                 {
-                    // If we can't even send the error, just log it
-                    _logger.LogError("Failed to send error message to client");
+                    // Ignore errors in error reporting
                 }
             }
         }
@@ -149,13 +220,14 @@ public class TimelineController : ControllerBase
     private bool IsValidOrigin(HttpRequest request)
     {
         var origin = request.Headers.Origin.ToString();
-        var allowedOrigins = new[] 
-        { 
-            "https://timeonar.vercel.app",
-            "http://localhost:5173" // For local development
-        };
+        _logger.LogInformation("Checking origin: {Origin}", origin);
         
-        // Check if the origin header exists and is in our allowed list
-        return !string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin);
+        var originsConfig = _configuration["ALLOWED_ORIGINS"] ?? "https://timeonar.vercel.app,http://localhost:5173";
+        var allowedOrigins = originsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        _logger.LogInformation("Allowed origins: {AllowedOrigins}", string.Join(", ", allowedOrigins));
+        
+        bool isValid = !string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin);
+        _logger.LogInformation("Origin valid: {IsValid}", isValid);
+        return isValid;
     }
 }

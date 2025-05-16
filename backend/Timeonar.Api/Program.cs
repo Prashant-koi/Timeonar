@@ -46,6 +46,17 @@ builder.Services.AddScoped<ProgressiveTimelineService>();
 
 var app = builder.Build();
 
+// Add logging at startup for debugging environment variables
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var config = app.Services.GetRequiredService<IConfiguration>();
+
+logger.LogInformation("Application starting...");
+logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);
+logger.LogInformation("SonarApi:ApiKey configured: {IsConfigured}", 
+    !string.IsNullOrEmpty(config["SonarApi:ApiKey"]));
+logger.LogInformation("ALLOWED_ORIGINS configured: {IsConfigured}",
+    !string.IsNullOrEmpty(config["ALLOWED_ORIGINS"]));
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
