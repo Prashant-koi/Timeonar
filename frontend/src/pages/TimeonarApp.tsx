@@ -39,7 +39,10 @@ const TimeonarApp = () => {
   const isPartiallyLoaded = useRef(false);
 
   // API URL - adjust based on your backend setup
-  const API_URL = 'https://timeonar-api.azurewebsites.net';
+  // const API_URL = 'https://timeonar-api.azurewebsites.net';
+
+  // locally
+  const API_URL = "http://localhost:5256"
   
   // Get initial topic from URL if present
   useEffect(() => {

@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Timeonar.Api.Models;
 
@@ -68,7 +69,7 @@ public class PerplexityClient
             
             var baseRequestBody = new
             {
-                model = "sonar-pro",
+                model = "sonar-reasoning",
                 max_tokens = 6000,
                 temperature = 0.0,
                 messages = new[]
@@ -110,6 +111,10 @@ public class PerplexityClient
             _logger.LogInformation("Step 3: Adding source, URL, author, and citation data");
             await EnrichTimelineSourcesAsync(timelineData, topic);
             
+            // STEP 4: Enrich with field evolution data
+            _logger.LogInformation("Step 4: Adding field evolution data");
+            await EnrichTimelineFieldEvolutionAsync(timelineData, topic);
+            
             return timelineData;
         }
         catch (Exception ex)
@@ -138,7 +143,7 @@ public class PerplexityClient
             
             var baseRequestBody = new
             {
-                model = "sonar-pro",
+                model = "sonar-reasoning",
                 max_tokens = 6000,
                 temperature = 0.0,
                 messages = new[]
@@ -200,7 +205,7 @@ Your response must ONLY contain a valid JSON object with these two fields and no
 
             var methodologyRequestBody = new
             {
-                model = "sonar-pro",
+                model = "sonar-reasoning",
                 max_tokens = 1000,
                 temperature = 0.0,
                 messages = new[]
@@ -307,7 +312,7 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
 
             var sourceRequestBody = new
             {
-                model = "sonar-pro",
+                model = "sonar-reasoning",
                 max_tokens = 1000,
                 temperature = 0.0,
                 messages = new[]
@@ -461,6 +466,112 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
         }
     }
 
+    public async Task EnrichEntryWithFieldEvolutionData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Check cancellation before starting
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            // Build a comprehensive prompt focused on field evolution, including methodology and paradigm context
+            var fieldEvolutionPrompt = $@"For this historical discovery in the field of {topic}, provide ONLY field evolution information:
+
+Year: {entry.Year}
+Title: {entry.Title}
+Discovery: {entry.Discovery}
+Summary: {entry.Summary}
+Key Insight: {entry.KeyInsight}
+Methodology: {entry.Methodology}
+Theoretical Paradigm: {entry.TheoreticalParadigm}
+
+Describe how this discovery contributed to the overall evolution of the field. Focus on:
+1. How this discovery changed the field
+2. What new research directions emerged as a result
+3. How this work influenced subsequent developments
+4. How this shifted understanding, methodology, or theoretical approaches
+
+Your response must ONLY contain a valid JSON object with a single 'fieldEvolution' field and nothing else. Be thorough and comprehensive.";
+
+            var fieldEvolutionRequestBody = new
+            {
+                model = "sonar-reasoning",
+                max_tokens = 1000,
+                temperature = 0.0,
+                messages = new[]
+                {
+                    new { role = "system", content = "You are a field evolution specialist who ONLY provides information about how scientific discoveries shaped their fields. Respond ONLY with valid JSON containing a fieldEvolution field." },
+                    new { role = "user", content = fieldEvolutionPrompt }
+                }
+            };
+
+            var fieldEvolutionHttpContent = new StringContent(
+                JsonSerializer.Serialize(fieldEvolutionRequestBody),
+                Encoding.UTF8,
+                "application/json");
+
+            // Add cancellation checks at key points
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var fieldEvolutionResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", fieldEvolutionHttpContent, cancellationToken);
+            var fieldEvolutionResponseJson = await fieldEvolutionResponse.Content.ReadAsStringAsync();
+            
+            if (!fieldEvolutionResponse.IsSuccessStatusCode)
+            {
+                _logger.LogError("Field Evolution API call failed for {Year} - {Title}: {StatusCode}", 
+                    entry.Year, entry.Title, (int)fieldEvolutionResponse.StatusCode);
+                return;
+            }
+            
+            // Extract the field evolution info from the response
+            var fieldEvolutionResponseContent = GetContentFromResponse(fieldEvolutionResponseJson);
+            
+            // Find the JSON in the response
+            var startIndex = fieldEvolutionResponseContent.IndexOf('{');
+            var endIndex = fieldEvolutionResponseContent.LastIndexOf('}') + 1;
+            
+            if (startIndex >= 0 && endIndex > startIndex)
+            {
+                var fieldEvolutionInfoJson = fieldEvolutionResponseContent.Substring(startIndex, endIndex - startIndex);
+                
+                try
+                {
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var fieldEvolutionInfo = JsonSerializer.Deserialize<FieldEvolutionInfo>(fieldEvolutionInfoJson, options);
+                    
+                    if (fieldEvolutionInfo != null)
+                    {
+                        // Update the entry with field evolution information
+                        entry.FieldEvolution = fieldEvolutionInfo.FieldEvolution;
+                        
+                        _logger.LogInformation("Successfully enriched entry {Year} - {Title} with field evolution data", 
+                            entry.Year, entry.Title);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error parsing field evolution info JSON for entry {Year} - {Title}", 
+                        entry.Year, entry.Title);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation token is triggered
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error enriching entry {Year} - {Title} with field evolution data", 
+                entry.Year, entry.Title);
+        }
+    }
+
     private async Task EnrichTimelineMethodologiesAsync(TimelineData timelineData, string topic)
     {
         // Process entries in parallel with a semaphore to limit concurrency
@@ -501,6 +612,26 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
         await Task.WhenAll(tasks);
     }
 
+    private async Task EnrichTimelineFieldEvolutionAsync(TimelineData timelineData, string topic)
+    {
+        // Process entries in parallel with a semaphore to limit concurrency
+        using var semaphore = new SemaphoreSlim(2); // Limit to 2 concurrent requests
+        var tasks = timelineData.Timeline.Select(async entry =>
+        {
+            try
+            {
+                await semaphore.WaitAsync();
+                await EnrichEntryWithFieldEvolutionData(entry, topic);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+        
+        await Task.WhenAll(tasks);
+    }
+
     public async Task<TimelineData> QuerySonarAsync(string prompt)
     {
         try
@@ -517,7 +648,7 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
             
             var requestBody = new 
             {
-                model = "sonar-pro",
+                model = "sonar-reasoning",
                 max_tokens = 4000,
                 temperature = 0.1, // Lower temperature for more deterministic responses
                 messages = new[]
@@ -574,28 +705,93 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
     {
         try
         {
-            // Find the JSON object in the response
-            var startIndex = responseText.IndexOf('{');
-            var endIndex = responseText.LastIndexOf('}') + 1;
+            // Log the full response for debugging
+            _logger.LogDebug("Raw response text: {ResponseText}", responseText);
+            
+            // Check for thinking markers
+            string jsonStr = responseText;
+            
+            // Look for closing </think> tag
+            const string marker = "</think>";
+            int idx = jsonStr.LastIndexOf(marker, StringComparison.InvariantCulture);
+            
+            if (idx != -1)
+            {
+                // Extract only the content after the </think> marker
+                jsonStr = jsonStr.Substring(idx + marker.Length).Trim();
+                _logger.LogDebug("Extracted after think marker: {JsonStr}", jsonStr);
+            }
+            
+            // Remove markdown code fence markers if present
+            if (jsonStr.StartsWith("```json", StringComparison.InvariantCultureIgnoreCase))
+            {
+                jsonStr = jsonStr.Substring("```json".Length).Trim();
+            }
+            else if (jsonStr.StartsWith("```", StringComparison.InvariantCultureIgnoreCase))
+            {
+                jsonStr = jsonStr.Substring("```".Length).Trim();
+            }
+            
+            if (jsonStr.EndsWith("```", StringComparison.InvariantCultureIgnoreCase))
+            {
+                jsonStr = jsonStr.Substring(0, jsonStr.Length - 3).Trim();
+            }
+            
+            // Find the first opening brace and the last closing brace
+            int startIndex = jsonStr.IndexOf('{');
+            int endIndex = jsonStr.LastIndexOf('}') + 1;
             
             if (startIndex >= 0 && endIndex > startIndex)
             {
-                var jsonPart = responseText.Substring(startIndex, endIndex - startIndex);
-                _logger.LogDebug("Extracted JSON: {Json}", jsonPart);
+                // Extract the JSON object
+                jsonStr = jsonStr.Substring(startIndex, endIndex - startIndex);
+                _logger.LogDebug("Final extracted JSON: {Json}", jsonStr);
                 
                 var options = new JsonSerializerOptions
                 {
-                    PropertyNameCaseInsensitive = true
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
                 };
                 
-                var data = JsonSerializer.Deserialize<TimelineData>(jsonPart, options) ?? 
-                    new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
+                var data = JsonSerializer.Deserialize<TimelineData>(jsonStr, options);
                 
-                // Ensure topic is set correctly
-                if (string.IsNullOrWhiteSpace(data.Topic))
-                    data.Topic = topic;
+                if (data != null)
+                {
+                    // Ensure topic is set correctly
+                    if (string.IsNullOrWhiteSpace(data.Topic))
+                    {
+                        data.Topic = topic;
+                    }
                     
-                return data;
+                    return data;
+                }
+            }
+            
+            // If we couldn't find valid JSON, try regex matching as a fallback
+            // This pattern looks for a properly structured timeline JSON object
+            var match = Regex.Match(jsonStr, @"\{\s*""topic""\s*:\s*"".*?"",\s*""timeline""\s*:\s*\[.*?\]\s*\}", 
+                RegexOptions.Singleline);
+            
+            if (match.Success)
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true
+                };
+                
+                var data = JsonSerializer.Deserialize<TimelineData>(match.Value, options);
+                if (data != null)
+                {
+                    // Ensure topic is set correctly
+                    if (string.IsNullOrWhiteSpace(data.Topic))
+                    {
+                        data.Topic = topic;
+                    }
+                    
+                    return data;
+                }
             }
             
             _logger.LogWarning("Failed to extract JSON from response");
@@ -770,6 +966,12 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
         [JsonConverter(typeof(FlexibleAuthorsConverter))]
         public List<string> Authors { get; set; } = new List<string>();
         public string CitationCount { get; set; } = "0";  // No converter needed
+    }
+
+    // Helper class for deserializing field evolution information
+    private class FieldEvolutionInfo
+    {
+        public string FieldEvolution { get; set; } = string.Empty;
     }
 
     // Updated FlexibleAuthorsConverter class to handle more formats
