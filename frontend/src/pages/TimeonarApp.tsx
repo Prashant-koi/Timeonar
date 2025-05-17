@@ -334,6 +334,8 @@ const TimeonarApp = () => {
             onYearFilter={handleYearFilter}
             isLoading={isLoading}
             selectedYear={filterYear}
+            timelineData={timelineData} // new prop
+            topic={topic} //new prop
           />
           
           {error && (
