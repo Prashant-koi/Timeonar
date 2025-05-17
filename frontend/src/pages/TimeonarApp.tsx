@@ -34,15 +34,16 @@ const TimeonarApp = () => {
   const [filterYear, setFilterYear] = useState<number | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [debugMode, setDebugMode] = useState(false);
+  const [timelineSelectedYear, setTimelineSelectedYear] = useState<number | null>(null);
   
   // Keep track of partially loaded data
   const isPartiallyLoaded = useRef(false);
 
   // API URL - adjust based on your backend setup
-  const API_URL = 'https://timeonar-api.azurewebsites.net';
+  // const API_URL = 'https://timeonar-api.azurewebsites.net';
 
   // locally
-  // const API_URL = "http://localhost:5256"
+  const API_URL = "http://localhost:5256"
   
   // Get initial topic from URL if present
   useEffect(() => {
@@ -108,7 +109,7 @@ const TimeonarApp = () => {
             isPartiallyLoaded.current = true;
             setTopic(baseData.Topic || "");
             setTimelineData(normalizedData);
-            setLoadingMessage('Enhancing with methodology information...');
+            setLoadingMessage('Enriching with methodology and field evolution information...');
             
             // Force additional update to ensure React renders
             setTimeout(() => {
@@ -123,7 +124,7 @@ const TimeonarApp = () => {
         }
       });
       
-      // Individual methodology updates
+      // Update the methodologyUpdate event handler to handle combined data
       eventSource.addEventListener('methodologyUpdate', (event) => {
         console.log("📥 Received methodologyUpdate from backend:", event.data);
         try {
@@ -152,7 +153,7 @@ const TimeonarApp = () => {
             fieldEvolution: updatedItem.FieldEvolution || ""
           };
           
-          console.log(`📝 Updating item: ${normalizedUpdate.id} - ${normalizedUpdate.title} with methodology data`);
+          console.log(`📝 Updating item: ${normalizedUpdate.id} - ${normalizedUpdate.title} with combined methodology & field evolution data`);
           
           // Update the timeline data by finding the item with matching year and title
           setTimelineData(currentData => {
@@ -175,13 +176,20 @@ const TimeonarApp = () => {
               fieldEvolution: normalizedUpdate.fieldEvolution
             };
             
-            console.log(`✅ Updated methodology for "${newData[index].title}" (${newData[index].year})`);
+            console.log(`✅ Updated methodology and field evolution for "${newData[index].title}" (${newData[index].year})`);
             return newData;
           });
           
           // Force a re-render by updating another state
           requestAnimationFrame(() => {
-            setLoadingMessage(current => current + " 🔄");
+            setLoadingMessage(current => {
+              // Check if the current message is about methodology
+              if (current.includes("methodology")) {
+                return "Enriching with methodology and field evolution... 🔄";
+              }
+              return current + " 🔄";
+            });
+            
             setTimeout(() => {
               setLoadingMessage(current => current.replace(" 🔄", ""));
             }, 10);
@@ -252,10 +260,10 @@ const TimeonarApp = () => {
           console.error('Error parsing sourceUpdate:', error);
         }
       });
-
+      
       // Methodology completion
       eventSource.addEventListener('methodologyComplete', (event) => {
-        console.log("✅ Methodology enrichment complete:", event.data);
+        console.log("✅ Methodology and field evolution enrichment complete:", event.data);
         setLoadingMessage('Adding source information and citations...');
       });
       
@@ -367,6 +375,8 @@ const TimeonarApp = () => {
                     <Timeline 
                       data={filteredTimelineData} 
                       topic={topic} 
+                      selectedYear={timelineSelectedYear}
+                      onSelectedYearChange={(year) => setTimelineSelectedYear(year)}
                     />
                   </>
                 );

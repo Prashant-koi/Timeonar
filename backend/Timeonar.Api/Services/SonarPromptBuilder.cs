@@ -74,7 +74,7 @@ public static class SonarPromptBuilder
         
         // Core instructions
         promptBuilder.AppendLine("\nRules for timeline entries:");
-        promptBuilder.AppendLine("1. Include 8-10 significant discoveries spanning the entire history of this field");
+        promptBuilder.AppendLine("1. Include 8-15 significant discoveries spanning the entire history of this field");
         promptBuilder.AppendLine("2. For each entry, provide ONLY the id, year, title, discovery description, summary, and key insight");
         promptBuilder.AppendLine("3. DO NOT include sources, URLs, authors, or citations - I will add those separately");
         promptBuilder.AppendLine("4. Focus on ACTUAL scientific discoveries, not general events or broad developments");

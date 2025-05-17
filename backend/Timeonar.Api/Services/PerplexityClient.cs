@@ -49,81 +49,6 @@ public class PerplexityClient
         }
     }
 
-    public async Task<TimelineData> GetTimelineAsync(string topic)
-    {
-        try
-        {
-            // Get API key and setup
-            if (string.IsNullOrEmpty(_apiKey))
-            {
-                _logger.LogError("API key for Perplexity API not found");
-                throw new InvalidOperationException("Perplexity API key not configured");
-            }
-            
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-            
-            // STEP 1: Generate basic timeline entries (years, titles, discoveries, summaries, keyInsights)
-            _logger.LogInformation("Step 1: Generating basic timeline data for topic: {Topic}", topic);
-            var basePrompt = SonarPromptBuilder.BuildBaseTimelinePrompt(topic);
-            
-            var baseRequestBody = new
-            {
-                model = "sonar-reasoning",
-                max_tokens = 6000,
-                temperature = 0.0,
-                messages = new[]
-                {
-                    new { role = "system", content = "You are a scientific research expert. Create a timeline of key discoveries for the requested topic. Include ONLY basic information: id, year, title, discovery, summary, and key insight. DO NOT include methodology, theoretical paradigms, sources, URLs, authors, or citation counts yet." },
-                    new { role = "user", content = basePrompt }
-                }
-            };
-
-            var baseContent = new StringContent(
-                JsonSerializer.Serialize(baseRequestBody),
-                Encoding.UTF8,
-                "application/json");
-
-            var baseResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", baseContent);
-            var baseResponseJson = await baseResponse.Content.ReadAsStringAsync();
-            
-            if (!baseResponse.IsSuccessStatusCode)
-            {
-                _logger.LogError("Base timeline API call failed: {StatusCode}, Response: {Response}", 
-                    (int)baseResponse.StatusCode, baseResponseJson);
-                return new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
-            }
-            
-            // Extract the base timeline data
-            var timelineData = ExtractBaseTimelineData(GetContentFromResponse(baseResponseJson), topic);
-            
-            if (timelineData.Timeline == null || !timelineData.Timeline.Any())
-            {
-                _logger.LogError("Failed to generate base timeline data");
-                return new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
-            }
-            
-            // STEP 2: Enrich with methodologies and theoretical paradigms
-            _logger.LogInformation("Step 2: Adding methodology and theoretical paradigm data");
-            await EnrichTimelineMethodologiesAsync(timelineData, topic);
-            
-            // STEP 3: Enrich with sources, URLs, authors, and citations
-            _logger.LogInformation("Step 3: Adding source, URL, author, and citation data");
-            await EnrichTimelineSourcesAsync(timelineData, topic);
-            
-            // STEP 4: Enrich with field evolution data
-            _logger.LogInformation("Step 4: Adding field evolution data");
-            await EnrichTimelineFieldEvolutionAsync(timelineData, topic);
-            
-            return timelineData;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error calling Perplexity API");
-            return new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
-        }
-    }
-
     public async Task<TimelineData> GetBaseTimelineAsync(string topic)
     {
         try
@@ -178,7 +103,48 @@ public class PerplexityClient
         }
     }
 
-    public async Task EnrichEntryWithMethodologyData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
+    public async Task<TimelineData> GetCompleteTimelineAsync(string topic)
+    {
+        try
+        {
+            // Validate API key
+            if (string.IsNullOrEmpty(_apiKey))
+            {
+                _logger.LogError("API key for Perplexity API not found");
+                throw new InvalidOperationException("Perplexity API key not configured");
+            }
+            
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+            
+            // STEP 1: Get base timeline (with basic information only)
+            _logger.LogInformation("Step 1: Generating basic timeline data for topic: {Topic}", topic);
+            var timelineData = await GetBaseTimelineAsync(topic);
+            
+            if (timelineData.Timeline == null || !timelineData.Timeline.Any())
+            {
+                _logger.LogError("Failed to generate base timeline data");
+                return new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
+            }
+            
+            // STEP 2: Enrich with methodologies, theoretical paradigms, and field evolution data
+            _logger.LogInformation("Step 2: Adding methodology, theoretical paradigm, and field evolution data");
+            await EnrichTimelineCombinedAsync(timelineData, topic);
+            
+            // STEP 3: Enrich with sources, URLs, authors, and citations
+            _logger.LogInformation("Step 3: Adding source, URL, author, and citation data");
+            await EnrichTimelineSourcesAsync(timelineData, topic);
+            
+            return timelineData;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting complete timeline data");
+            return new TimelineData { Topic = topic, Timeline = new List<TimelineItem>() };
+        }
+    }
+
+    public async Task EnrichEntryWithMethodologyAndEvolutionData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -188,8 +154,8 @@ public class PerplexityClient
                 return;
             }
 
-            // Build a comprehensive prompt focused on methodology
-            var methodologyPrompt = $@"For this historical discovery in the field of {topic}, provide ONLY methodology and theoretical paradigm information:
+            // Build a comprehensive prompt that asks for methodology, theoretical paradigm, AND field evolution
+            var combinedPrompt = $@"For this historical discovery in the field of {topic}, provide ONLY the following information:
 
 Year: {entry.Year}
 Title: {entry.Title}
@@ -197,74 +163,76 @@ Discovery: {entry.Discovery}
 Summary: {entry.Summary}
 Key Insight: {entry.KeyInsight}
 
-Provide ONLY these two fields in JSON format:
+Provide ONLY these three fields in JSON format:
 1. methodology - detailed description of the research methods, experimental design, tools, or approaches used
 2. theoreticalParadigm - explanation of the conceptual framework this research operated within or challenged
+3. fieldEvolution - how this discovery contributed to the evolution of the field, including new research directions and its influence on subsequent developments
 
-Your response must ONLY contain a valid JSON object with these two fields and nothing else. Be detailed and accurate based on the historical context.";
+Your response must ONLY contain a valid JSON object with these three fields and nothing else. Be detailed and accurate based on the historical context.";
 
-            var methodologyRequestBody = new
+            var combinedRequestBody = new
             {
                 model = "sonar-reasoning",
-                max_tokens = 1000,
+                max_tokens = 4000,
                 temperature = 0.0,
                 messages = new[]
                 {
-                    new { role = "system", content = "You are a research methodology specialist who ONLY provides detailed information about scientific methods and theoretical frameworks. Respond ONLY with valid JSON containing methodology and theoreticalParadigm fields." },
-                    new { role = "user", content = methodologyPrompt }
+                    new { role = "system", content = "You are a research specialist who provides detailed information about scientific methods, theoretical frameworks, and field evolution. Respond ONLY with valid JSON containing methodology, theoreticalParadigm, and fieldEvolution fields." },
+                    new { role = "user", content = combinedPrompt }
                 }
             };
 
-            var methodologyHttpContent = new StringContent(
-                JsonSerializer.Serialize(methodologyRequestBody),
+            var combinedHttpContent = new StringContent(
+                JsonSerializer.Serialize(combinedRequestBody),
                 Encoding.UTF8,
                 "application/json");
 
-            // Add cancellation checks at key points
+            // Add cancellation checks
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
 
-            var methodologyResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", methodologyHttpContent, cancellationToken);
-            var methodologyResponseJson = await methodologyResponse.Content.ReadAsStringAsync();
+            var combinedResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", combinedHttpContent, cancellationToken);
+            var combinedResponseJson = await combinedResponse.Content.ReadAsStringAsync();
             
-            if (!methodologyResponse.IsSuccessStatusCode)
+            if (!combinedResponse.IsSuccessStatusCode)
             {
-                _logger.LogError("Methodology API call failed for {Year} - {Title}: {StatusCode}", 
-                    entry.Year, entry.Title, (int)methodologyResponse.StatusCode);
+                _logger.LogError("Combined methodology and evolution API call failed for {Year} - {Title}: {StatusCode}", 
+                    entry.Year, entry.Title, (int)combinedResponse.StatusCode);
                 return;
             }
             
-            // Extract the methodology info from the response
-            var methodologyResponseContent = GetContentFromResponse(methodologyResponseJson);
+            // Extract the info from the response
+            var combinedResponseContent = GetContentFromResponse(combinedResponseJson);
             
             // Find the JSON in the response
-            var startIndex = methodologyResponseContent.IndexOf('{');
-            var endIndex = methodologyResponseContent.LastIndexOf('}') + 1;
+            var startIndex = combinedResponseContent.IndexOf('{');
+            var endIndex = combinedResponseContent.LastIndexOf('}') + 1;
             
             if (startIndex >= 0 && endIndex > startIndex)
             {
-                var methodologyInfoJson = methodologyResponseContent.Substring(startIndex, endIndex - startIndex);
+                var combinedInfoJson = combinedResponseContent.Substring(startIndex, endIndex - startIndex);
                 
                 try
                 {
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var methodologyInfo = JsonSerializer.Deserialize<MethodologyInfo>(methodologyInfoJson, options);
+                    var combinedInfo = JsonSerializer.Deserialize<CombinedInfo>(combinedInfoJson, options);
                     
-                    if (methodologyInfo != null)
+                    if (combinedInfo != null)
                     {
-                        // Update the entry with methodology information
-                        entry.Methodology = methodologyInfo.Methodology;
-                        entry.TheoreticalParadigm = methodologyInfo.TheoreticalParadigm;
+                        // Update the entry with all the information at once
+                        entry.Methodology = combinedInfo.Methodology;
+                        entry.TheoreticalParadigm = combinedInfo.TheoreticalParadigm;
+                        entry.FieldEvolution = combinedInfo.FieldEvolution;
                         
-                        _logger.LogInformation("Successfully enriched entry {Year} - {Title} with methodology data", 
+                        _logger.LogInformation("Successfully enriched entry {Year} - {Title} with methodology and field evolution data", 
                             entry.Year, entry.Title);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error parsing methodology info JSON for entry {Year} - {Title}", 
+                    _logger.LogError(ex, "Error parsing combined info JSON for entry {Year} - {Title}", 
                         entry.Year, entry.Title);
                 }
             }
@@ -276,9 +244,29 @@ Your response must ONLY contain a valid JSON object with these two fields and no
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error enriching entry {Year} - {Title} with methodology data", 
+            _logger.LogError(ex, "Error enriching entry {Year} - {Title} with combined methodology and field evolution data", 
                 entry.Year, entry.Title);
         }
+    }
+
+    private async Task EnrichTimelineCombinedAsync(TimelineData timelineData, string topic)
+    {
+        // Process entries in parallel with a semaphore to limit concurrency
+        using var semaphore = new SemaphoreSlim(2); // Limit to 2 concurrent requests
+        var tasks = timelineData.Timeline.Select(async entry =>
+        {
+            try
+            {
+                await semaphore.WaitAsync();
+                await EnrichEntryWithMethodologyAndEvolutionData(entry, topic);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+        
+        await Task.WhenAll(tasks);
     }
 
     public async Task EnrichEntryWithSourceData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
@@ -303,21 +291,21 @@ Methodology: {entry.Methodology}
 Theoretical Paradigm: {entry.TheoreticalParadigm}
 
 Find the ORIGINAL ACADEMIC SOURCE for this discovery or research. Provide ONLY these fields:
-1. source - name of the academic journal or conference where this was published (e.g., 'Nature', 'Physical Review Letters')
+1. source - name of the academic journal, conference, or book where this was published
 2. url - direct link to the original paper (DOI link preferred)
 3. authors - full list of researchers who made this discovery
 4. citationCount - approximate citation count of this paper
 
-Your response must ONLY contain a valid JSON object with these four fields. The source MUST be an actual academic journal or conference name, NOT Wikipedia or educational websites.";
+Your response must ONLY contain a valid JSON object with these four fields.";
 
             var sourceRequestBody = new
             {
                 model = "sonar-reasoning",
-                max_tokens = 1000,
+                max_tokens = 4000,
                 temperature = 0.0,
                 messages = new[]
                 {
-                    new { role = "system", content = "You are an academic citation specialist who ONLY provides scholarly source information. The 'source' field must ONLY contain the name of the academic journal. The 'url' field must ONLY contain direct links to the original papers (DOI links preferred). Never include Wikipedia or educational websites." },
+                    new { role = "system", content = "You are an academic citation specialist who ONLY provides scholarly source information. Respond ONLY with valid JSON containing source information." },
                     new { role = "user", content = sourcePrompt }
                 }
             };
@@ -343,17 +331,11 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                 return;
             }
             
-            // Extract the source info from the response
-            var sourceResponseContent = GetContentFromResponse(sourceResponseJson);
+            // Extract the source info from the response using a more robust approach
+            var sourceJsonContent = ExtractValidJsonFromResponse(sourceResponseJson);
             
-            // Find the JSON in the response
-            var startIndex = sourceResponseContent.IndexOf('{');
-            var endIndex = sourceResponseContent.LastIndexOf('}') + 1;
-            
-            if (startIndex >= 0 && endIndex > startIndex)
+            if (!string.IsNullOrEmpty(sourceJsonContent))
             {
-                var sourceInfoJson = sourceResponseContent.Substring(startIndex, endIndex - startIndex);
-                
                 try
                 {
                     // Add more options for flexible deserialization
@@ -363,7 +345,7 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                         ReadCommentHandling = JsonCommentHandling.Skip
                     };
                     
-                    var sourceInfo = JsonSerializer.Deserialize<SourceInfo>(sourceInfoJson, options);
+                    var sourceInfo = JsonSerializer.Deserialize<SourceInfo>(sourceJsonContent, options);
                     
                     if (sourceInfo != null)
                     {
@@ -380,75 +362,15 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
                 catch (JsonException ex)
                 {
                     _logger.LogError(ex, "Error parsing source info JSON for entry {Year} - {Title}: {Json}", 
-                        entry.Year, entry.Title, sourceInfoJson);
+                        entry.Year, entry.Title, sourceJsonContent);
                         
-                    // Enhanced fallback approach with more detailed parsing
+                    // Enhanced fallback approach with more detailed parsing using Regex
                     try {
-                        using var doc = JsonDocument.Parse(sourceInfoJson);
-                        var root = doc.RootElement;
-                        
-                        if (root.TryGetProperty("source", out var sourceElement))
-                            entry.Source = sourceElement.GetString() ?? entry.Source;
-                            
-                        if (root.TryGetProperty("url", out var urlElement))
-                            entry.Url = urlElement.GetString() ?? entry.Url;
-                        
-                        // Advanced authors extraction
-                        if (root.TryGetProperty("authors", out var authorsElement))
-                        {
-                            var authors = new List<string>();
-                            
-                            switch (authorsElement.ValueKind)
-                            {
-                                case JsonValueKind.String:
-                                    var authorString = authorsElement.GetString() ?? string.Empty;
-                                    if (!string.IsNullOrWhiteSpace(authorString))
-                                    {
-                                        if (authorString.Contains(","))
-                                            authors.AddRange(authorString.Split(',').Select(a => a.Trim()));
-                                        else
-                                            authors.Add(authorString);
-                                    }
-                                    break;
-                                    
-                                case JsonValueKind.Array:
-                                    foreach (var element in authorsElement.EnumerateArray())
-                                    {
-                                        if (element.ValueKind == JsonValueKind.String)
-                                        {
-                                            var author = element.GetString();
-                                            if (!string.IsNullOrWhiteSpace(author))
-                                                authors.Add(author);
-                                        }
-                                    }
-                                    break;
-                            }
-                            
-                            if (authors.Count > 0)
-                                entry.Authors = authors;
-                        }
-                            
-                        if (root.TryGetProperty("citationCount", out var citationCountElement))
-                        {
-                            switch (citationCountElement.ValueKind)
-                            {
-                                case JsonValueKind.Number:
-                                    entry.CitationCount = citationCountElement.GetInt64().ToString();
-                                    break;
-                                case JsonValueKind.String:
-                                    entry.CitationCount = citationCountElement.GetString() ?? "0";
-                                    break;
-                                default:
-                                    entry.CitationCount = "0";
-                                    break;
-                            }
-                        }
-                        
-                        _logger.LogInformation("Successfully extracted source data using fallback method for {Year} - {Title}", 
+                        entry = ExtractSourceInfoWithRegex(entry, sourceJsonContent);
+                        _logger.LogInformation("Successfully extracted source data using regex fallback for {Year} - {Title}", 
                             entry.Year, entry.Title);
-                    }
-                    catch (Exception fallbackEx) {
-                        _logger.LogError(fallbackEx, "Fallback JSON parsing also failed for {Year} - {Title}", 
+                    } catch (Exception regexEx) {
+                        _logger.LogError(regexEx, "Regex fallback parsing also failed for {Year} - {Title}", 
                             entry.Year, entry.Title);
                     }
                 }
@@ -466,130 +388,122 @@ Your response must ONLY contain a valid JSON object with these four fields. The 
         }
     }
 
-    public async Task EnrichEntryWithFieldEvolutionData(TimelineItem entry, string topic, CancellationToken cancellationToken = default)
+    private string ExtractValidJsonFromResponse(string responseJson)
     {
         try
         {
-            // Check cancellation before starting
-            if (cancellationToken.IsCancellationRequested)
+            // First, get the content from the response
+            string content = GetContentFromResponse(responseJson);
+            if (string.IsNullOrEmpty(content))
             {
-                return;
+                _logger.LogWarning("Empty content in response");
+                return string.Empty;
             }
 
-            // Build a comprehensive prompt focused on field evolution, including methodology and paradigm context
-            var fieldEvolutionPrompt = $@"For this historical discovery in the field of {topic}, provide ONLY field evolution information:
-
-Year: {entry.Year}
-Title: {entry.Title}
-Discovery: {entry.Discovery}
-Summary: {entry.Summary}
-Key Insight: {entry.KeyInsight}
-Methodology: {entry.Methodology}
-Theoretical Paradigm: {entry.TheoreticalParadigm}
-
-Describe how this discovery contributed to the overall evolution of the field. Focus on:
-1. How this discovery changed the field
-2. What new research directions emerged as a result
-3. How this work influenced subsequent developments
-4. How this shifted understanding, methodology, or theoretical approaches
-
-Your response must ONLY contain a valid JSON object with a single 'fieldEvolution' field and nothing else. Be thorough and comprehensive.";
-
-            var fieldEvolutionRequestBody = new
-            {
-                model = "sonar-reasoning",
-                max_tokens = 1000,
-                temperature = 0.0,
-                messages = new[]
-                {
-                    new { role = "system", content = "You are a field evolution specialist who ONLY provides information about how scientific discoveries shaped their fields. Respond ONLY with valid JSON containing a fieldEvolution field." },
-                    new { role = "user", content = fieldEvolutionPrompt }
-                }
-            };
-
-            var fieldEvolutionHttpContent = new StringContent(
-                JsonSerializer.Serialize(fieldEvolutionRequestBody),
-                Encoding.UTF8,
-                "application/json");
-
-            // Add cancellation checks at key points
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
-
-            var fieldEvolutionResponse = await _httpClient.PostAsync("https://api.perplexity.ai/chat/completions", fieldEvolutionHttpContent, cancellationToken);
-            var fieldEvolutionResponseJson = await fieldEvolutionResponse.Content.ReadAsStringAsync();
+            // Log the full content for debugging
+            _logger.LogDebug("Raw content before JSON extraction: {Content}", content);
             
-            if (!fieldEvolutionResponse.IsSuccessStatusCode)
+            // Find the index of the closing </think> tag if present
+            const string marker = "</think>";
+            int idx = content.LastIndexOf(marker, StringComparison.InvariantCulture);
+            
+            if (idx != -1)
             {
-                _logger.LogError("Field Evolution API call failed for {Year} - {Title}: {StatusCode}", 
-                    entry.Year, entry.Title, (int)fieldEvolutionResponse.StatusCode);
-                return;
+                // Extract only the content after the </think> marker
+                content = content.Substring(idx + marker.Length).Trim();
+                _logger.LogDebug("Content after </think> marker: {Content}", content);
             }
             
-            // Extract the field evolution info from the response
-            var fieldEvolutionResponseContent = GetContentFromResponse(fieldEvolutionResponseJson);
+            // Remove markdown code fence markers if present
+            if (content.StartsWith("```json", StringComparison.InvariantCultureIgnoreCase))
+            {
+                content = content.Substring("```json".Length).Trim();
+            }
+            else if (content.StartsWith("```", StringComparison.InvariantCultureIgnoreCase))
+            {
+                content = content.Substring("```".Length).Trim();
+            }
             
-            // Find the JSON in the response
-            var startIndex = fieldEvolutionResponseContent.IndexOf('{');
-            var endIndex = fieldEvolutionResponseContent.LastIndexOf('}') + 1;
+            if (content.EndsWith("```", StringComparison.InvariantCultureIgnoreCase))
+            {
+                content = content.Substring(0, content.Length - 3).Trim();
+            }
+            
+            // Find the first opening brace and the last closing brace (the actual JSON object)
+            int startIndex = content.IndexOf('{');
+            int endIndex = content.LastIndexOf('}') + 1;
             
             if (startIndex >= 0 && endIndex > startIndex)
             {
-                var fieldEvolutionInfoJson = fieldEvolutionResponseContent.Substring(startIndex, endIndex - startIndex);
-                
-                try
-                {
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var fieldEvolutionInfo = JsonSerializer.Deserialize<FieldEvolutionInfo>(fieldEvolutionInfoJson, options);
-                    
-                    if (fieldEvolutionInfo != null)
-                    {
-                        // Update the entry with field evolution information
-                        entry.FieldEvolution = fieldEvolutionInfo.FieldEvolution;
-                        
-                        _logger.LogInformation("Successfully enriched entry {Year} - {Title} with field evolution data", 
-                            entry.Year, entry.Title);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error parsing field evolution info JSON for entry {Year} - {Title}", 
-                        entry.Year, entry.Title);
-                }
+                // Extract the JSON object
+                string jsonStr = content.Substring(startIndex, endIndex - startIndex);
+                _logger.LogDebug("Extracted JSON: {Json}", jsonStr);
+                return jsonStr;
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when cancellation token is triggered
-            throw;
+            
+            _logger.LogWarning("Could not find valid JSON object in content");
+            return string.Empty;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error enriching entry {Year} - {Title} with field evolution data", 
-                entry.Year, entry.Title);
+            _logger.LogError(ex, "Error extracting valid JSON from response");
+            return string.Empty;
         }
     }
 
-    private async Task EnrichTimelineMethodologiesAsync(TimelineData timelineData, string topic)
+    private TimelineItem ExtractSourceInfoWithRegex(TimelineItem entry, string jsonStr)
     {
-        // Process entries in parallel with a semaphore to limit concurrency
-        using var semaphore = new SemaphoreSlim(2); // Limit to 2 concurrent requests
-        var tasks = timelineData.Timeline.Select(async entry =>
+        // Try to extract source
+        var sourceMatch = Regex.Match(jsonStr, @"""source""?\s*:\s*""([^""]+)""");
+        if (sourceMatch.Success && sourceMatch.Groups.Count > 1)
         {
-            try
-            {
-                await semaphore.WaitAsync();
-                await EnrichEntryWithMethodologyData(entry, topic);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
+            entry.Source = sourceMatch.Groups[1].Value;
+        }
         
-        await Task.WhenAll(tasks);
+        // Try to extract URL
+        var urlMatch = Regex.Match(jsonStr, @"""url""?\s*:\s*""([^""]+)""");
+        if (urlMatch.Success && urlMatch.Groups.Count > 1)
+        {
+            entry.Url = urlMatch.Groups[1].Value;
+        }
+        
+        // Try to extract citation count
+        var citationMatch = Regex.Match(jsonStr, @"""citationCount""?\s*:\s*""([^""]+)""");
+        if (citationMatch.Success && citationMatch.Groups.Count > 1)
+        {
+            entry.CitationCount = citationMatch.Groups[1].Value;
+        }
+        else
+        {
+            // Also try numeric citation count
+            var numCitationMatch = Regex.Match(jsonStr, @"""citationCount""?\s*:\s*(\d+)");
+            if (numCitationMatch.Success && numCitationMatch.Groups.Count > 1)
+            {
+                entry.CitationCount = numCitationMatch.Groups[1].Value;
+            }
+        }
+        
+        // Try to extract authors - this is more complex as it's an array
+        var authorsText = Regex.Match(jsonStr, @"""authors""?\s*:\s*\[(.*?)\]", RegexOptions.Singleline);
+        if (authorsText.Success && authorsText.Groups.Count > 1)
+        {
+            var authorsList = new List<string>();
+            var authorMatches = Regex.Matches(authorsText.Groups[1].Value, @"""([^""]+)""");
+            foreach (Match match in authorMatches)
+            {
+                if (match.Groups.Count > 1)
+                {
+                    authorsList.Add(match.Groups[1].Value);
+                }
+            }
+            
+            if (authorsList.Count > 0)
+            {
+                entry.Authors = authorsList;
+            }
+        }
+        
+        return entry;
     }
 
     private async Task EnrichTimelineSourcesAsync(TimelineData timelineData, string topic)
@@ -602,26 +516,6 @@ Your response must ONLY contain a valid JSON object with a single 'fieldEvolutio
             {
                 await semaphore.WaitAsync();
                 await EnrichEntryWithSourceData(entry, topic);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-        
-        await Task.WhenAll(tasks);
-    }
-
-    private async Task EnrichTimelineFieldEvolutionAsync(TimelineData timelineData, string topic)
-    {
-        // Process entries in parallel with a semaphore to limit concurrency
-        using var semaphore = new SemaphoreSlim(2); // Limit to 2 concurrent requests
-        var tasks = timelineData.Timeline.Select(async entry =>
-        {
-            try
-            {
-                await semaphore.WaitAsync();
-                await EnrichEntryWithFieldEvolutionData(entry, topic);
             }
             finally
             {
@@ -971,6 +865,14 @@ Your response must ONLY contain a valid JSON object with a single 'fieldEvolutio
     // Helper class for deserializing field evolution information
     private class FieldEvolutionInfo
     {
+        public string FieldEvolution { get; set; } = string.Empty;
+    }
+
+    // Helper class for deserializing combined information
+    private class CombinedInfo
+    {
+        public string Methodology { get; set; } = string.Empty;
+        public string TheoreticalParadigm { get; set; } = string.Empty;
         public string FieldEvolution { get; set; } = string.Empty;
     }
 

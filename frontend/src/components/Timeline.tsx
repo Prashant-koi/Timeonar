@@ -4,26 +4,42 @@ import { TimelineItem } from '../types/timeline';
 interface TimelineProps {
   data: TimelineItem[];
   topic: string;
+  selectedYear?: number | null;
+  onSelectedYearChange?: (year: number | null) => void;
 }
 
-const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
+const Timeline: React.FC<TimelineProps> = ({ 
+  data, 
+  topic, 
+  selectedYear: externalSelectedYear, 
+  onSelectedYearChange 
+}) => {
   // Refs for interactive elements
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // States for UI interaction
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [internalSelectedYear, setInternalSelectedYear] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'methodology' | 'paradigm' | 'evolution'>('summary');
   const [zoomedOut, setZoomedOut] = useState(true);
   const [canvasInitialized, setCanvasInitialized] = useState(false);
   
+  // Use the external year if provided, otherwise use internal state
+  const selectedYear = externalSelectedYear !== undefined ? externalSelectedYear : internalSelectedYear;
+
   // Group timeline items by year
   const itemsByYear = useMemo(() => {
     return data.reduce((acc: Record<number, TimelineItem[]>, item) => {
       if (!acc[item.year]) {
         acc[item.year] = [];
       }
+      
+      // Ensure each item has a truly unique id
+      if (!item.id || item.id.trim() === '') {
+        item.id = `${item.year}-${Math.random().toString(36).substring(2, 9)}`;
+      }
+      
       acc[item.year].push(item);
       return acc;
     }, {});
@@ -153,28 +169,38 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
 
   // Handle year selection
   const handleYearClick = (year: number) => {
-    if (selectedYear === year) {
-      // If clicking the already selected year, zoom out
-      setSelectedYear(null);
-      setZoomedOut(true);
+    const newSelectedYear = selectedYear === year ? null : year;
+    
+    if (onSelectedYearChange) {
+      // Call the parent component's function
+      onSelectedYearChange(newSelectedYear);
     } else {
-      // Select the year and zoom in
-      setSelectedYear(year);
-      setZoomedOut(false);
+      // Use internal state
+      setInternalSelectedYear(newSelectedYear);
     }
+    
+    setZoomedOut(newSelectedYear === null);
   };
   
   // Navigate to previous year
   const handlePreviousYear = () => {
     if (previousYear !== null) {
-      handleYearClick(previousYear);
+      if (onSelectedYearChange) {
+        onSelectedYearChange(previousYear);
+      } else {
+        setInternalSelectedYear(previousYear);
+      }
     }
   };
   
   // Navigate to next year
   const handleNextYear = () => {
     if (nextYear !== null) {
-      handleYearClick(nextYear);
+      if (onSelectedYearChange) {
+        onSelectedYearChange(nextYear);
+      } else {
+        setInternalSelectedYear(nextYear);
+      }
     }
   };
 
@@ -212,6 +238,16 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previousYear, nextYear, selectedYear]);
+
+  // Handle zoom out
+  const handleZoomOut = () => {
+    if (onSelectedYearChange) {
+      onSelectedYearChange(null);
+    } else {
+      setInternalSelectedYear(null);
+    }
+    setZoomedOut(true);
+  };
   
   return (
     <div className="relative h-screen overflow-hidden bg-black">
@@ -239,10 +275,7 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
           
           {/* Right side: Zoom control button */}
           <button
-            onClick={() => {
-              setSelectedYear(null);
-              setZoomedOut(true);
-            }}
+            onClick={handleZoomOut}
             className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 transition-colors ${
               zoomedOut ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
             }`}
@@ -377,7 +410,7 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto h-full p-4">
               {years.map(year => (
                 <div
-                  key={year}
+                  key={`year-overview-${year}`} // Ensure unique key
                   className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 hover:border-blue-500/50 rounded-lg p-4 transition-all cursor-pointer"
                   onClick={() => handleYearClick(year)}
                 >
@@ -389,7 +422,7 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                   </h3>
                   
                   {itemsByYear[year].slice(0, 1).map(item => (
-                    <div key={item.id}>
+                    <div key={`overview-${item.id}-${year}`}>
                       <h4 className="font-bold text-white mb-1">{item.title}</h4>
                       <p className="text-gray-400 text-sm truncate">{item.summary}</p>
                       {itemsByYear[year].length > 1 && (
@@ -444,7 +477,7 @@ const Timeline: React.FC<TimelineProps> = ({ data, topic }) => {
                   {/* The rest of your existing content */}
                   <div className="space-y-8">
                     {itemsByYear[selectedYear].map((item, index) => (
-                      <div key={item.id} className="border-t border-gray-800 pt-6 first:border-0 first:pt-0">
+                      <div key={`detail-${item.id}-${item.year}`} className={index > 0 ? "pt-8 border-t border-gray-800" : ""}>
                         <div className="flex flex-col md:flex-row md:items-start gap-4 mb-4">
                           <div className="flex-grow">
                             <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">

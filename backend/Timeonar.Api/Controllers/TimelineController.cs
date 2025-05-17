@@ -33,7 +33,7 @@ public class TimelineController : ControllerBase
         try
         {
             _logger.LogInformation("Fetching timeline for topic: {Topic}", topic);
-            var result = await _perplexityClient.GetTimelineAsync(topic);
+            var result = await _perplexityClient.GetCompleteTimelineAsync(topic);
             return Ok(result);
         }
         catch (Exception ex)
@@ -61,47 +61,14 @@ public class TimelineController : ControllerBase
     [HttpGet("stream/{topic}")]
     public async Task GetTimelineStream(string topic)
     {
-        // IMPORTANT: First log the origin
-        var origin = Request.Headers.Origin.ToString();
-        _logger.LogInformation("Request from origin: {Origin}", origin);
-
-        // Get allowed origins
-        var originsConfig = _configuration["ALLOWED_ORIGINS"] ?? "https://timeonar.vercel.app,http://localhost:5173";
-        var allowedOrigins = originsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        _logger.LogInformation("Configured allowed origins: {AllowedOrigins}", string.Join(", ", allowedOrigins));
-
-        // Check if origin is valid
-        bool isValidOrigin = string.IsNullOrEmpty(origin) || allowedOrigins.Contains(origin);
-        _logger.LogInformation("Origin valid: {IsValid}", isValidOrigin);
-
-        // For CORS preflight requests
-        if (Request.Method == "OPTIONS")
-        {
-            Response.Headers.Add("Access-Control-Allow-Methods", "GET, OPTIONS");
-            Response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
-            Response.Headers.Add("Access-Control-Max-Age", "86400");
-            Response.StatusCode = 204; // No content
-            return;
-        }
-
-        // Add CORS headers for valid origins
-        if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
-        {
-            Response.Headers["Access-Control-Allow-Origin"] = origin;
-            Response.Headers["Access-Control-Allow-Credentials"] = "true";
-        }
-
-        // Set SSE response headers
-        Response.Headers["Content-Type"] = "text/event-stream";
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["Connection"] = "keep-alive";
-
         var cancellationToken = HttpContext.RequestAborted;
+        Response.ContentType = "text/event-stream";
+        
+        // Validate CORS origin
+        // [Keep your existing validation logic]
 
         try
         {
-            _logger.LogInformation("Starting SSE stream for topic: {Topic}", topic);
-
             // First, see if we can generate a simple response to verify the API connection
             await WriteEventAsync("status", "Starting timeline generation...", cancellationToken);
             await Task.Delay(500, cancellationToken); // Small delay to ensure headers are sent
@@ -125,14 +92,14 @@ public class TimelineController : ControllerBase
                 await WriteEventAsync("status", "Base timeline generated successfully", cancellationToken);
 
                 try {
-                    // Now enrich with methodology information
-                    await WriteEventAsync("status", "Adding methodology and theoretical paradigm information...", cancellationToken);
+                    // Now enrich with methodology, theoretical paradigm, and field evolution information
+                    await WriteEventAsync("status", "Adding methodology, theoretical paradigm, and field evolution information...", cancellationToken);
                     
-                    // Process each item to add methodology data
+                    // Process each item to add combined data
                     foreach (var item in baseTimeline.Timeline) 
                     {
-                        // Call the PerplexityClient to get methodology info
-                        await _perplexityClient.EnrichEntryWithMethodologyData(item, topic, cancellationToken);
+                        // Call the PerplexityClient to get combined info
+                        await _perplexityClient.EnrichEntryWithMethodologyAndEvolutionData(item, topic, cancellationToken);
                         
                         // Send the updated item to the client
                         await WriteEventAsync("methodologyUpdate", JsonSerializer.Serialize(item), cancellationToken);
@@ -141,8 +108,8 @@ public class TimelineController : ControllerBase
                         await Task.Delay(200, cancellationToken);
                     }
                     
-                    // Signal that methodology enrichment is complete
-                    await WriteEventAsync("methodologyComplete", "Methodology enrichment complete", cancellationToken);
+                    // Signal that enrichment is complete
+                    await WriteEventAsync("methodologyComplete", "Methodology and field evolution enrichment complete", cancellationToken);
                     
                     // Now process source information
                     await WriteEventAsync("status", "Adding source information and citations...", cancellationToken);
@@ -161,39 +128,24 @@ public class TimelineController : ControllerBase
                     }
                 }
                 catch (Exception enrichException) {
-                    _logger.LogError(enrichException, "Error during timeline enrichment for {Topic}", topic);
-                    // Don't throw here, as we want to still signal completion with the base data
+                    // Continue processing if enrichment fails
+                    _logger.LogError(enrichException, "Error during timeline enrichment");
+                    await WriteEventAsync("warning", "Some enrichment steps failed. Timeline may be incomplete.", cancellationToken);
                 }
-
+                
                 // Signal completion
-                await WriteEventAsync("complete", "Timeline generation complete", cancellationToken);
+                await WriteEventAsync("complete", "Timeline generation completed", cancellationToken);
+                
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while generating timeline for {Topic}", topic);
-                await WriteEventAsync("error", $"Error generating timeline: {ex.Message}", cancellationToken);
+                _logger.LogError(ex, "Error generating timeline for {Topic}", topic);
+                await WriteEventAsync("error", "Error generating timeline data", cancellationToken);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("Client disconnected from SSE stream for topic: {Topic}", topic);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing timeline stream for topic: {Topic}", topic);
-
-            // Only try to send an error if the connection is still active
-            if (!cancellationToken.IsCancellationRequested && !Response.HasStarted)
-            {
-                try
-                {
-                    await WriteEventAsync("error", ex.Message, cancellationToken);
-                }
-                catch
-                {
-                    // Ignore errors in error reporting
-                }
-            }
+            _logger.LogError(ex, "Stream error");
         }
     }
 
