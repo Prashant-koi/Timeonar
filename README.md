@@ -131,6 +131,5 @@ Contributions, issues, and feature requests are welcome!
 ### Acknowledgements
 
 - Perplexity team for creating the powerful Sonar API  
-- All contributors involved in the development of this project  
 - The hackathon organizers for the opportunity to build this tool  
 
