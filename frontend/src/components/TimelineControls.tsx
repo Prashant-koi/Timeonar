@@ -58,7 +58,7 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
     
     setExporting(true);
     try {
-      const jsPDFModule = await import('jspdf');
+      // const jsPDFModule = await import('jspdf');
       await import('jspdf-autotable');
       
       exportTimelineToPDF(topic, timelineData);
