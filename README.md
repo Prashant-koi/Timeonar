@@ -1,12 +1,12 @@
 # Timeonar: Smart Literature Timeline Explorer
 
-![Timeonar Logo](frontend/public/logo.png)
+[Click this for web-hosted app](https://timeonar.vercel.app/)
 
 ## 🌟 Perplexity Sonar API Integration
 
 Timeonar leverages the power of **Perplexity's Sonar API** to create rich, interactive timelines of scientific research and discoveries across any field of study. Our application demonstrates the capabilities of the Sonar API through multiple integration points:
 
-- **Reasoning-Based Timeline Generation**: We utilize the `sonar-reasoning` model to analyze and synthesize information about a topic's historical development, generating comprehensive timelines with key discoveries, methodologies, and field evolution patterns.
+- **Reasoning-Based Timeline Generation**: I used the `sonar-reasoning` model to analyze and synthesize information about a topic's historical development, generating comprehensive timelines with key discoveries, methodologies, and field evolution patterns.
 
 - **Progressive Enrichment**: Our backend makes sequential API calls to enrich the timeline data in layers, providing users with a dynamic experience as details are populated in real-time:
   1. Base timeline generation with core details (years, titles, discoveries)
@@ -16,6 +16,11 @@ Timeonar leverages the power of **Perplexity's Sonar API** to create rich, inter
 - **Academic Source Verification**: We employ custom prompt engineering and JSON extraction techniques to retrieve accurate source information, including original publication venues, DOIs, authors, and citation metrics.
 
 - **Think-Aloud Pattern Parsing**: Custom JSON extraction utilities handle Sonar's reasoning process, capturing concise structured data from detailed API responses which may include explanatory text.
+
+
+### Reason for Sequential API calls
+The reason for making Sequential API calls was that we were requesting so much data from the Sonar API that it occasionally hallucinated and returned incorrect information. More importantly, it was atrociously slow, taking up to 3 minutes to display all the information. We were stuck on the loading screen for 3 whole minutes. To reduce hallucinations, provide more context, and improve performance, I decided to implement sequential API calls.
+
 
 ## ⚙️ Project Overview
 
@@ -37,7 +42,6 @@ Timeonar is an interactive web application that visualizes the evolution of scie
 - **Backend**: .NET 8 Web API
 - **API Integration**: Perplexity Sonar API with the sonar-reasoning model
 - **Visualization**: Custom timeline visualization with HTML Canvas
-- **Data Processing**: Custom JSON parsing and entity extraction
 
 ## 📚 Use Cases
 
@@ -47,7 +51,7 @@ Timeonar is designed to serve multiple research-focused audiences:
 - **Students & Educators**: Create visual learning aids for understanding the historical progression of scientific topics
 - **Literature Reviews**: Generate comprehensive literature reviews in a fraction of the time normally required
 - **Corporate R&D**: Stay on top of industry trends and technological developments
-- **Personal Learning**: Explore topics of interest and develop deeper understanding through chronological context
+- **Personal Learning**: Explore topics of interest and develop a deeper understanding through chronological context
 
 ## 🚀 Getting Started
 
@@ -119,17 +123,12 @@ Timeonar/
 
 ### 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](#).
+Contributions, issues, and feature requests are welcome!
 
 ---
 
-### 📝 License
 
-This project is MIT licensed.
-
----
-
-### 🙏 Acknowledgements
+### Acknowledgements
 
 - Perplexity team for creating the powerful Sonar API  
 - All contributors involved in the development of this project  
