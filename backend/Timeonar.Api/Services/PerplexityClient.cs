@@ -604,6 +604,8 @@ Your response must ONLY contain a valid JSON object with these four fields.";
             
             // Check for thinking markers
             string jsonStr = responseText;
+
+            jsonStr = Regex.Replace(jsonStr, @"""year""\s*:\s*(\d+)s", "\"year\": $1");
             
             // Look for closing </think> tag
             const string marker = "</think>";
