@@ -24,7 +24,7 @@ The reason for making Sequential API calls was that we were requesting so much d
 
 ## ⚙️ Project Overview
 
-Timeonar is an interactive web application that visualizes the evolution of scientific knowledge on any topic. It transforms complex research histories into clear, chronological timelines, making it easy to understand how ideas and discoveries have progressed through time.
+Timeonar is an interactive web application that visualizes the timeline of the evolution of scientific knowledge on any topic. It transforms complex research histories into clear, chronological timelines, making it easy to understand how ideas and discoveries have progressed through time.
 
 ### Key Features
 
