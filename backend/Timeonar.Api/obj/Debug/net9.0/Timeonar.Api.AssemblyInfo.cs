@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Timeonar.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d199b778da4d2e6acb05573a9cef6a2a92bd41ec")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+77cc61da4cfcd3fccd587afb5748685f6c2a6077")]
 [assembly: System.Reflection.AssemblyProductAttribute("Timeonar.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Timeonar.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
